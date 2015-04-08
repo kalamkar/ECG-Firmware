@@ -57,7 +57,7 @@ int main(void) {
 
     MonitorService monitorService(ble);
 
-    DeviceInformationService deviceInfo(ble, "Dovetail", "Model1", "SN1", "hw-rev1", "fw-rev1", "soft-rev1");
+    DeviceInformationService deviceInfo(ble, "Dovetail Monitor", "Model1", "SN1", "hw-rev1", "fw-rev1", "soft-rev1");
 
     // Setup advertising.
     ble.accumulateAdvertisingPayload(GapAdvertisingData::BREDR_NOT_SUPPORTED | GapAdvertisingData::LE_GENERAL_DISCOVERABLE);
