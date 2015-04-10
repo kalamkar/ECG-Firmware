@@ -9,8 +9,8 @@ BLEDevice  ble;
 DigitalOut led1(LED1);
 AnalogIn sensor(P0_4);
 
-// Ticker idleTicker;
 Ticker sensorTicker;
+Ticker ledTicker;
 
 const static char     DEVICE_NAME[]        = "Dovetail1";
 static const uint16_t uuid16_list[]        = {MonitorService::UUID_SERVICE,
@@ -23,25 +23,25 @@ void toggleLED() {
 
 void triggerSensor() {
     triggerSensorPolling = true;
-    led1 = 1; // Keep LED lit when connected and polling
 }
 
 void connectionCallback(Gap::Handle_t handle, Gap::addr_type_t peerAddrType,
                         const Gap::address_t peerAddr, const Gap::ConnectionParams_t *) {
     ble.stopAdvertising();
-    // idleTicker.detach();
     sensorTicker.attach(&triggerSensor, 0.01); // Trigger Sensor every 10 milliseconds
+    ledTicker.attach(&toggleLED, 1); // Trigger Sensor every second
 }
 
 void disconnectionCallback(Gap::Handle_t handle, Gap::DisconnectionReason_t reason) {
     ble.startAdvertising();
     sensorTicker.detach();
-    // idleTicker.attach(&toggleLED, 1);
+    ledTicker.detach();
+    led1 = 0;
 }
 
 int main(void) {
-    // idleTicker.attach(&toggleLED, 1);
-
+    led1 = 0;
+    
     ble.init();
     ble.onDisconnection(disconnectionCallback);
     ble.onConnection(connectionCallback);
