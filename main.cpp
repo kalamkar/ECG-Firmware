@@ -5,16 +5,11 @@
 #include "MonitorService.h"
 #include "DeviceInformationService.h"
 
-/* Enable the following if you need to throttle the connection interval. This has
- * the effect of reducing energy consumption after a connection is made;
- * particularly for applications where the central may want a fast connection
- * interval.*/
-#define UPDATE_PARAMS_FOR_LONGER_CONNECTION_INTERVAL 0
-
 BLEDevice  ble;
 DigitalOut led1(LED1);
 AnalogIn sensor(P0_4);
 
+// Ticker idleTicker;
 Ticker sensorTicker;
 
 const static char     DEVICE_NAME[]        = "Dovetail1";
@@ -22,41 +17,48 @@ static const uint16_t uuid16_list[]        = {MonitorService::UUID_SERVICE,
                                               GattService::UUID_DEVICE_INFORMATION_SERVICE};
 static volatile bool  triggerSensorPolling = false;
 
-
-void triggerSensor(void) {
-    /* Note that the ticker callback executes in interrupt context, so it is safer to do
-     * heavy-weight sensor polling from the main thread. */
-    triggerSensorPolling = true;
+void toggleLED() {
+    led1 = !led1;
 }
 
-void disconnectionCallback(Gap::Handle_t handle, Gap::DisconnectionReason_t reason) {
-    ble.startAdvertising();
-    sensorTicker.detach();
-    led1 = 1;
+void triggerSensor() {
+    triggerSensorPolling = true;
+    led1 = 1; // Keep LED lit when connected and polling
 }
 
 void connectionCallback(Gap::Handle_t handle, Gap::addr_type_t peerAddrType,
                         const Gap::address_t peerAddr, const Gap::ConnectionParams_t *) {
     ble.stopAdvertising();
-    sensorTicker.attach(&triggerSensor, 0.5); // Trigger Sensor every 500 milliseconds
+    // idleTicker.detach();
+    sensorTicker.attach(&triggerSensor, 0.01); // Trigger Sensor every 10 milliseconds
+}
+
+void disconnectionCallback(Gap::Handle_t handle, Gap::DisconnectionReason_t reason) {
+    ble.startAdvertising();
+    sensorTicker.detach();
+    // idleTicker.attach(&toggleLED, 1);
 }
 
 int main(void) {
-    led1 = 1;
+    // idleTicker.attach(&toggleLED, 1);
 
     ble.init();
     ble.onDisconnection(disconnectionCallback);
     ble.onConnection(connectionCallback);
 
+    // Monitor and device information services provided by the BLE device
     MonitorService monitorService(ble);
-
-    DeviceInformationService deviceInfo(ble, "Dovetail Monitor", "Model1", "SN1", "hw-rev1", "fw-rev1", "soft-rev1");
+    DeviceInformationService deviceInfo(ble, "Dovetail Monitor", "Model1", "SN1", "hw-rev1",
+                                        "fw-rev1", "soft-rev1");
 
     // Setup advertising.
-    ble.accumulateAdvertisingPayload(GapAdvertisingData::BREDR_NOT_SUPPORTED | GapAdvertisingData::LE_GENERAL_DISCOVERABLE);
-    ble.accumulateAdvertisingPayload(GapAdvertisingData::COMPLETE_LIST_16BIT_SERVICE_IDS, (uint8_t *)uuid16_list, sizeof(uuid16_list));
+    ble.accumulateAdvertisingPayload(GapAdvertisingData::BREDR_NOT_SUPPORTED
+                                     | GapAdvertisingData::LE_GENERAL_DISCOVERABLE);
+    ble.accumulateAdvertisingPayload(GapAdvertisingData::COMPLETE_LIST_16BIT_SERVICE_IDS,
+                                     (uint8_t *)uuid16_list, sizeof(uuid16_list));
     ble.accumulateAdvertisingPayload(GapAdvertisingData::GENERIC_HEART_RATE_SENSOR);
-    ble.accumulateAdvertisingPayload(GapAdvertisingData::COMPLETE_LOCAL_NAME, (uint8_t *)DEVICE_NAME, sizeof(DEVICE_NAME));
+    ble.accumulateAdvertisingPayload(GapAdvertisingData::COMPLETE_LOCAL_NAME,
+                                     (uint8_t *)DEVICE_NAME, sizeof(DEVICE_NAME));
     ble.setAdvertisingType(GapAdvertisingParams::ADV_CONNECTABLE_UNDIRECTED);
     ble.setAdvertisingInterval(Gap::MSEC_TO_ADVERTISEMENT_DURATION_UNITS(1000));
     ble.startAdvertising();
@@ -65,14 +67,8 @@ int main(void) {
     while (1) {
         if (triggerSensorPolling && ble.getGapState().connected) {
             triggerSensorPolling = false;
-
-            // Do blocking calls or whatever is necessary for sensor polling.
-            // Read and update sensor value
-            uint16_t value = sensor.read_u16();
-            led1 = value % 2;
-            monitorService.addValue(value);
-        } else {
-            ble.waitForEvent(); // low power wait for event
+            monitorService.addValue(sensor.read_u16());
         }
+        ble.waitForEvent(); // low power wait for event
     }
 }
