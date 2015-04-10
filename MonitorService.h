@@ -10,7 +10,7 @@ public:
 
     static const unsigned UUID_SERVICE      = 0x1901;
     static const unsigned UUID_CHAR         = 0x1902;
-    static const uint16_t MAX_VALUE_BYTES   = 1;
+    static const uint16_t MAX_VALUE_BYTES   = 2;
 
     MonitorService(BLEDevice &_ble) :
         ble(_ble),
@@ -22,8 +22,9 @@ public:
         ble.addService(monitorService);
     }
     
-    void addValue(uint8_t value) {
-        valueBytes[length++] = value;
+    void addValue(uint16_t value) {
+        valueBytes[length++] = value & 0x00FF;
+        valueBytes[length++] = value >> 8;
         if (length == MAX_VALUE_BYTES) {
             ble.updateCharacteristicValue(monitor.getValueHandle(), valueBytes, length);   
             length = 0;

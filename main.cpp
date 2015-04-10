@@ -13,9 +13,8 @@
 
 BLEDevice  ble;
 DigitalOut led1(LED1);
-AnalogIn sensor(A4);
+AnalogIn sensor(P0_4);
 
-// Ticker idleTicker;
 Ticker sensorTicker;
 
 const static char     DEVICE_NAME[]        = "Dovetail1";
@@ -23,9 +22,6 @@ static const uint16_t uuid16_list[]        = {MonitorService::UUID_SERVICE,
                                               GattService::UUID_DEVICE_INFORMATION_SERVICE};
 static volatile bool  triggerSensorPolling = false;
 
-void toggleLED(void) {
-    led1 = !led1;
-}
 
 void triggerSensor(void) {
     /* Note that the ticker callback executes in interrupt context, so it is safer to do
@@ -35,21 +31,18 @@ void triggerSensor(void) {
 
 void disconnectionCallback(Gap::Handle_t handle, Gap::DisconnectionReason_t reason) {
     ble.startAdvertising();
-    // idleTicker.attach(&toggleLED, 1); // blink LED every second
     sensorTicker.detach();
-    led1 = 0;
+    led1 = 1;
 }
 
 void connectionCallback(Gap::Handle_t handle, Gap::addr_type_t peerAddrType,
                         const Gap::address_t peerAddr, const Gap::ConnectionParams_t *) {
     ble.stopAdvertising();
     sensorTicker.attach(&triggerSensor, 0.5); // Trigger Sensor every 500 milliseconds
-    // idleTicker.detach();
 }
 
 int main(void) {
     led1 = 1;
-    // idleTicker.attach(&toggleLED, 1); // blink LED every second
 
     ble.init();
     ble.onDisconnection(disconnectionCallback);
@@ -72,12 +65,12 @@ int main(void) {
     while (1) {
         if (triggerSensorPolling && ble.getGapState().connected) {
             triggerSensorPolling = false;
-            toggleLED();
 
             // Do blocking calls or whatever is necessary for sensor polling.
             // Read and update sensor value
-            monitorService.addValue(sensor.read());
-            // monitorService.addValue((uint8_t) rand());
+            uint16_t value = sensor.read_u16();
+            led1 = value % 2;
+            monitorService.addValue(value);
         } else {
             ble.waitForEvent(); // low power wait for event
         }
