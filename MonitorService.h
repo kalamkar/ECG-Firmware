@@ -9,9 +9,7 @@ class MonitorService {
 public:
 
     static const unsigned UUID_SERVICE      = 0x1901;
-    static const unsigned UUID_CHAR         = 0x1902;
-    
-    // This has to be an even number since we have 2 byte samples
+    static const unsigned UUID_CHAR         = 0x1902;    
     static const uint16_t MAX_DATA_LEN      = 512;
 
     MonitorService(BLEDevice &_ble) :
@@ -25,8 +23,7 @@ public:
     }
     
     void addValue(uint16_t sample) {
-        data[length++] = sample & 0x00FF;
-        data[length++] = sample >> 8;
+        data[length++] = sample >> 2;
         if (length == MAX_DATA_LEN) {
             ble.updateCharacteristicValue(monitor.getValueHandle(), data, length);   
             length = 0;
