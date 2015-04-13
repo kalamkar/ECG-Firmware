@@ -2,7 +2,7 @@
 
 #include "mbed.h"
 #include "BLEDevice.h"
-#include "MonitorService.h"
+#include "NotifyReadService.h"
 #include "DeviceInformationService.h"
 
 BLEDevice  ble;
@@ -13,7 +13,7 @@ Ticker sensorTicker;
 Ticker ledTicker;
 
 const static char     DEVICE_NAME[]        = "Dovetail1";
-static const uint16_t uuid16_list[]        = {MonitorService::UUID_SERVICE,
+static const uint16_t uuid16_list[]        = {NotifyReadService::UUID_SERVICE,
                                               GattService::UUID_DEVICE_INFORMATION_SERVICE};
 static volatile bool  triggerSensorPolling = false;
 
@@ -47,7 +47,7 @@ int main(void) {
     ble.onConnection(connectionCallback);
 
     // Monitor and device information services provided by the BLE device
-    MonitorService monitorService(ble);
+    NotifyReadService monitorService(ble);
     DeviceInformationService deviceInfo(ble, "Dovetail Monitor", "Model1", "SN1", "hw-rev1",
                                         "fw-rev1", "soft-rev1");
 

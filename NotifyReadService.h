@@ -1,11 +1,11 @@
 // Copyright 2015 Dovetail Care Inc. All rights reserved.
 
-#ifndef __MONITOR_SERVICE_H__
-#define __MONITOR_SERVICE_H__
+#ifndef __NOTIFY_READ_SERVICE_H__
+#define __NOTIFY_READ_SERVICE_H__
 
 #include "BLEDevice.h"
 
-class MonitorService {
+class NotifyReadService {
 public:
 
     static const unsigned SENSOR_MAX        = 1024;
@@ -15,7 +15,7 @@ public:
     static const unsigned UUID_CHAR_PEAK    = 0x1903;
     static const uint16_t MAX_DATA_LEN      = 512;
 
-    MonitorService(BLEDevice &_ble) :
+    NotifyReadService(BLEDevice &_ble) :
         ble(_ble),
         length(0),
         sampleMax(0),
@@ -24,7 +24,7 @@ public:
         peak(UUID_CHAR_PEAK, &peakPercent, sizeof(peakPercent), sizeof(peakPercent),
                     GattCharacteristic::BLE_GATT_CHAR_PROPERTIES_NOTIFY) {
         GattCharacteristic *charTable[] = {&sensorData, &peak};
-        GattService         monitorService(MonitorService::UUID_SERVICE, charTable, 2);
+        GattService         monitorService(NotifyReadService::UUID_SERVICE, charTable, 2);
         ble.addService(monitorService);
     }
     
@@ -59,4 +59,4 @@ private:
     GattCharacteristic  peak;
 };
 
-#endif /* #ifndef __MONITOR_SERVICE_H__*/
+#endif /* #ifndef __NOTIFY_READ_SERVICE_H__*/
