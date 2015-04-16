@@ -25,19 +25,27 @@ void triggerSensor() {
     triggerSensorPolling = true;
 }
 
-void connectionCallback(Gap::Handle_t handle, Gap::addr_type_t peerAddrType,
-                        const Gap::address_t peerAddr, const Gap::ConnectionParams_t *) {
-    ble.stopAdvertising();
+void updatesEnabledCallback(Gap::Handle_t handle) {
     sensorTicker.attach(&triggerSensor, 0.01); // Trigger Sensor every 10 milliseconds
     ledTicker.attach(&toggleLED, 1); // Trigger Sensor every second
 }
 
-void disconnectionCallback(Gap::Handle_t handle, Gap::DisconnectionReason_t reason) {
-    ble.startAdvertising();
+void updatesDisabledCallback(Gap::Handle_t handle) {
     sensorTicker.detach();
     ledTicker.detach();
     led1 = 0;
 }
+
+void connectionCallback(Gap::Handle_t handle, Gap::addr_type_t peerAddrType,
+                        const Gap::address_t peerAddr, const Gap::ConnectionParams_t *) {
+    ble.stopAdvertising();
+}
+
+void disconnectionCallback(Gap::Handle_t handle, Gap::DisconnectionReason_t reason) {
+    ble.startAdvertising();
+    updatesDisabledCallback(handle);
+}
+
 
 int main(void) {
     led1 = 0;
@@ -45,6 +53,8 @@ int main(void) {
     ble.init();
     ble.onDisconnection(disconnectionCallback);
     ble.onConnection(connectionCallback);
+    ble.onUpdatesEnabled(updatesEnabledCallback);
+    ble.onUpdatesDisabled(updatesDisabledCallback);
 
     // Monitor and device information services provided by the BLE device
     NotifyReadService monitorService(ble);
