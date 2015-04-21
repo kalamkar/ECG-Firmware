@@ -31,10 +31,11 @@ public:
     void addValue(uint16_t sample) {
         buffer[length++] = sample >> 2;
         sampleMax = sampleMax < sample ? sample : sampleMax;
+        sampleMin = sampleMin > sample ? sample : sampleMin;
         
         // Notify the variation value once buffer is full
         if (length == MAX_DATA_LEN) {
-            peakPercent = sampleMax * 100 / SENSOR_MAX;
+            peakPercent = (sampleMax - sampleMin) * 100 / SENSOR_MAX;
             ble.updateCharacteristicValue(peak.getValueHandle(), &peakPercent, sizeof(peakPercent));
             
             memcpy(data, buffer, MAX_DATA_LEN);
@@ -42,6 +43,7 @@ public:
             
             length = 0;
             sampleMax = 0;
+            sampleMin = SENSOR_MAX;
         }
     }
 
@@ -54,6 +56,7 @@ private:
     
     uint8_t             peakPercent;
     uint16_t            sampleMax;
+    uint16_t            sampleMin;
 
     GattCharacteristic  sensorData;
     GattCharacteristic  peak;
