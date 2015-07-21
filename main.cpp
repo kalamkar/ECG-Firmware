@@ -9,6 +9,12 @@ BLEDevice  ble;
 DigitalOut led1(LED1);
 AnalogIn sensor(P0_4);
 
+I2C i2c(P0_10, P0_8)
+const static int MMA845X = 0x1D;
+
+SPI spi(P0_9, P0_11, P0_8); // mosi, miso, sclk
+DigitalOut cs(P0_10);
+
 Ticker sensorTicker;
 Ticker ledTicker;
 
@@ -46,9 +52,33 @@ void disconnectionCallback(Gap::Handle_t handle, Gap::DisconnectionReason_t reas
     updatesDisabledCallback(handle);
 }
 
+int spiRead() {
+    cs = 0; 
+    int value = spi.write(0x00);
+    cs = 1;    
+    return value;
+}
+
+int i2cRead() {
+    char cmd[2];
+    cmd[0] = 0x01;
+    cmd[1] = 0x00;
+    i2c.write(MMA845X, cmd, 2);
+ 
+    wait(0.5);
+ 
+    cmd[0] = 0x00;
+    i2c.write(addr, cmd, 1);
+    i2c.read(addr, cmd, 2);
+}
 
 int main(void) {
     led1 = 0;
+    
+    // Setup the spi for 12 bit data, Mode 0 with a 100KHz clock rate
+    spi.format(12, 0);
+    spi.frequency(100000);
+    cs = 1;
     
     ble.init();
     ble.onDisconnection(disconnectionCallback);
@@ -77,6 +107,7 @@ int main(void) {
     while (1) {
         if (triggerSensorPolling && ble.getGapState().connected) {
             triggerSensorPolling = false;
+            // monitorService.addValue(spiRead());
             monitorService.addValue(sensor.read_u16());
         }
         ble.waitForEvent(); // low power wait for event
