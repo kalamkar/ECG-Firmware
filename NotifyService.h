@@ -3,7 +3,7 @@
 #ifndef __NOTIFY_SERVICE_H__
 #define __NOTIFY_SERVICE_H__
 
-#include "BLEDevice.h"
+#include "BLE.h"
 
 class NotifyService {
 public:
@@ -12,7 +12,7 @@ public:
     static const unsigned UUID_CHAR_DATA    = 0x1902;
     static const uint16_t MAX_DATA_LEN      = 20;
 
-    NotifyService(BLEDevice &_ble) :
+    NotifyService(BLE &_ble) :
         ble(_ble),
         length(0),
         sensorData(UUID_CHAR_DATA, data, 0, MAX_DATA_LEN,
@@ -22,7 +22,7 @@ public:
         ble.addService(monitorService);
     }
     
-    void addValue(uint16_t sample) {
+    void addValue(uint8_t sample) {
         data[length++] = sample >> 2;
         
         if (length == MAX_DATA_LEN) {

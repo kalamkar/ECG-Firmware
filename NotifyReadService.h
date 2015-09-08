@@ -3,7 +3,7 @@
 #ifndef __NOTIFY_READ_SERVICE_H__
 #define __NOTIFY_READ_SERVICE_H__
 
-#include "BLEDevice.h"
+#include "BLE.h"
 
 class NotifyReadService {
 public:
@@ -15,7 +15,7 @@ public:
     static const unsigned UUID_CHAR_PEAK    = 0x1903;
     static const uint16_t MAX_DATA_LEN      = 512;
 
-    NotifyReadService(BLEDevice &_ble) :
+    NotifyReadService(BLE &_ble) :
         ble(_ble),
         length(0),
         sampleMax(0),
@@ -28,10 +28,10 @@ public:
         ble.addService(monitorService);
     }
     
-    void addValue(uint16_t sample) {
-        buffer[length++] = sample >> 2;
-        sampleMax = sampleMax < sample ? sample : sampleMax;
-        sampleMin = sampleMin > sample ? sample : sampleMin;
+    void addValue(uint8_t sample) {
+        buffer[length++] = sample;
+        sampleMax = sample > sampleMax ? sample : sampleMax;
+        sampleMin = sample < sampleMin ? sample : sampleMin;
         
         // Notify the variation value once buffer is full
         if (length == MAX_DATA_LEN) {
@@ -55,8 +55,8 @@ private:
     uint8_t             data[MAX_DATA_LEN];
     
     uint8_t             peakPercent;
-    uint16_t            sampleMax;
-    uint16_t            sampleMin;
+    uint8_t             sampleMax;
+    uint8_t             sampleMin;
 
     GattCharacteristic  sensorData;
     GattCharacteristic  peak;

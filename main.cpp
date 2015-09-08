@@ -1,19 +1,26 @@
 // Copyright 2015 Dovetail Care Inc. All rights reserved.
 
 #include "mbed.h"
-#include "BLEDevice.h"
+#include "BLE.h"
 #include "NotifyReadService.h"
 #include "DeviceInformationService.h"
+#include "MMA8452.h"
+#include "MMA8451Q.h"
 
-BLEDevice  ble;
+#undef MMA8452_DEBUG
+
+const static uint8_t MMA845X = 0x1D;
+//const static uint8_t CTRL_REG1 = 0x2A;
+//const static uint8_t XYZ_DATA_CFG = 0x0E;
+
+BLE  ble;
 DigitalOut led1(LED1);
 AnalogIn sensor(P0_4);
 
-I2C i2c(P0_10, P0_8)
-const static int MMA845X = 0x1D;
+I2C i2c(P0_10, P0_8);
+// MMA8452 acc(P0_10, P0_8, 40000);
+MMA8451Q acc(P0_10, P0_8, MMA845X);
 
-SPI spi(P0_9, P0_11, P0_8); // mosi, miso, sclk
-DigitalOut cs(P0_10);
 
 Ticker sensorTicker;
 Ticker ledTicker;
@@ -42,8 +49,7 @@ void updatesDisabledCallback(Gap::Handle_t handle) {
     led1 = 0;
 }
 
-void connectionCallback(Gap::Handle_t handle, Gap::addr_type_t peerAddrType,
-                        const Gap::address_t peerAddr, const Gap::ConnectionParams_t *) {
+void connectionCallback(const Gap::ConnectionCallbackParams_t *) {
     ble.stopAdvertising();
 }
 
@@ -52,39 +58,15 @@ void disconnectionCallback(Gap::Handle_t handle, Gap::DisconnectionReason_t reas
     updatesDisabledCallback(handle);
 }
 
-int spiRead() {
-    cs = 0; 
-    int value = spi.write(0x00);
-    cs = 1;    
-    return value;
-}
-
-int i2cRead() {
-    char cmd[2];
-    cmd[0] = 0x01;
-    cmd[1] = 0x00;
-    i2c.write(MMA845X, cmd, 2);
- 
-    wait(0.5);
- 
-    cmd[0] = 0x00;
-    i2c.write(addr, cmd, 1);
-    i2c.read(addr, cmd, 2);
-}
-
 int main(void) {
     led1 = 0;
-    
-    // Setup the spi for 12 bit data, Mode 0 with a 100KHz clock rate
-    spi.format(12, 0);
-    spi.frequency(100000);
-    cs = 1;
-    
+
     ble.init();
-    ble.onDisconnection(disconnectionCallback);
-    ble.onConnection(connectionCallback);
-    ble.onUpdatesEnabled(updatesEnabledCallback);
-    ble.onUpdatesDisabled(updatesDisabledCallback);
+    ble.gap().onDisconnection(disconnectionCallback);
+    ble.gap().onConnection(connectionCallback);
+    ble.gattServer().onUpdatesEnabled(updatesEnabledCallback);
+    ble.gattServer().onUpdatesDisabled(updatesDisabledCallback);
+    
 
     // Monitor and device information services provided by the BLE device
     NotifyReadService monitorService(ble);
@@ -92,23 +74,30 @@ int main(void) {
                                         "fw-rev1", "soft-rev1");
 
     // Setup advertising.
-    ble.accumulateAdvertisingPayload(GapAdvertisingData::BREDR_NOT_SUPPORTED
+    ble.gap().accumulateAdvertisingPayload(GapAdvertisingData::BREDR_NOT_SUPPORTED
                                      | GapAdvertisingData::LE_GENERAL_DISCOVERABLE);
-    ble.accumulateAdvertisingPayload(GapAdvertisingData::COMPLETE_LIST_16BIT_SERVICE_IDS,
+    ble.gap().accumulateAdvertisingPayload(GapAdvertisingData::COMPLETE_LIST_16BIT_SERVICE_IDS,
                                      (uint8_t *)uuid16_list, sizeof(uuid16_list));
-    ble.accumulateAdvertisingPayload(GapAdvertisingData::GENERIC_HEART_RATE_SENSOR);
-    ble.accumulateAdvertisingPayload(GapAdvertisingData::COMPLETE_LOCAL_NAME,
+    ble.gap().accumulateAdvertisingPayload(GapAdvertisingData::GENERIC_HEART_RATE_SENSOR);
+    ble.gap().accumulateAdvertisingPayload(GapAdvertisingData::COMPLETE_LOCAL_NAME,
                                      (uint8_t *)DEVICE_NAME, sizeof(DEVICE_NAME));
-    ble.setAdvertisingType(GapAdvertisingParams::ADV_CONNECTABLE_UNDIRECTED);
-    ble.setAdvertisingInterval(Gap::MSEC_TO_ADVERTISEMENT_DURATION_UNITS(1000));
-    ble.startAdvertising();
+    ble.gap().setAdvertisingType(GapAdvertisingParams::ADV_CONNECTABLE_UNDIRECTED);
+    ble.gap().setAdvertisingInterval(1000); // milli seconds
+    ble.gap().startAdvertising();
+
+//    acc.setBitDepth(MMA8452::BIT_DEPTH_8);
+//    acc.setDynamicRange(MMA8452::DYNAMIC_RANGE_2G);
+//    acc.setDataRate(MMA8452::RATE_100);
 
     // infinite loop
     while (1) {
         if (triggerSensorPolling && ble.getGapState().connected) {
             triggerSensorPolling = false;
-            // monitorService.addValue(spiRead());
-            monitorService.addValue(sensor.read_u16());
+//            int z = 0;
+//            acc.readZCount(&z);
+//            monitorService.addValue(z);
+            monitorService.addValue(acc.getAccX() * 0xFF);
+            // monitorService.addValue(sensor.read_u16());
         }
         ble.waitForEvent(); // low power wait for event
     }
