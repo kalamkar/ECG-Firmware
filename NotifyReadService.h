@@ -8,23 +8,27 @@
 class NotifyReadService {
 public:
 
-    static const unsigned SENSOR_MAX        = 1024;
+    static const unsigned SENSOR_MAX        = 0xFF;
     
     static const unsigned UUID_SERVICE      = 0x1901;
     static const unsigned UUID_CHAR_DATA    = 0x1902;
     static const unsigned UUID_CHAR_PEAK    = 0x1903;
+    static const unsigned UUID_CHAR_STATUS  = 0x1904;
     static const uint16_t MAX_DATA_LEN      = 512;
 
     NotifyReadService(BLE &_ble) :
         ble(_ble),
         length(0),
+        statusValue(0),
         sampleMax(0),
         sensorData(UUID_CHAR_DATA, data, 0, MAX_DATA_LEN,
                     GattCharacteristic::BLE_GATT_CHAR_PROPERTIES_READ),
         peak(UUID_CHAR_PEAK, &peakPercent, sizeof(peakPercent), sizeof(peakPercent),
+                    GattCharacteristic::BLE_GATT_CHAR_PROPERTIES_NOTIFY),
+        status(UUID_CHAR_STATUS, &statusValue, sizeof(statusValue), sizeof(statusValue),
                     GattCharacteristic::BLE_GATT_CHAR_PROPERTIES_NOTIFY) {
-        GattCharacteristic *charTable[] = {&sensorData, &peak};
-        GattService         monitorService(NotifyReadService::UUID_SERVICE, charTable, 2);
+        GattCharacteristic *charTable[] = {&sensorData, &peak, &status};
+        GattService         monitorService(NotifyReadService::UUID_SERVICE, charTable, 3);
         ble.addService(monitorService);
     }
     
@@ -46,6 +50,14 @@ public:
             sampleMin = SENSOR_MAX;
         }
     }
+    
+    void updateStatus() {
+        ble.updateCharacteristicValue(status.getValueHandle(), &statusValue, sizeof(statusValue));
+    }
+    
+    uint8_t* getStatus() {
+        return &statusValue;
+    }
 
 private:
     BLEDevice           &ble;
@@ -53,6 +65,7 @@ private:
     uint8_t             buffer[MAX_DATA_LEN];
     uint16_t            length;
     uint8_t             data[MAX_DATA_LEN];
+    uint8_t             statusValue;
     
     uint8_t             peakPercent;
     uint8_t             sampleMax;
@@ -60,6 +73,7 @@ private:
 
     GattCharacteristic  sensorData;
     GattCharacteristic  peak;
+    GattCharacteristic  status;
 };
 
 #endif /* #ifndef __NOTIFY_READ_SERVICE_H__*/

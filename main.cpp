@@ -5,11 +5,8 @@
 #include "NotifyReadService.h"
 #include "DeviceInformationService.h"
 #include "MMA8452.h"
-#include "MMA8451Q.h"
 
-#undef MMA8452_DEBUG
-
-const static uint8_t MMA845X = 0x1D;
+//const static uint8_t MMA845X = 0x1D;
 //const static uint8_t CTRL_REG1 = 0x2A;
 //const static uint8_t XYZ_DATA_CFG = 0x0E;
 
@@ -17,10 +14,7 @@ BLE  ble;
 DigitalOut led1(LED1);
 AnalogIn sensor(P0_4);
 
-I2C i2c(P0_10, P0_8);
-// MMA8452 acc(P0_10, P0_8, 40000);
-MMA8451Q acc(P0_10, P0_8, MMA845X);
-
+MMA8452 accelerometer(P0_10, P0_8, 100000);
 
 Ticker sensorTicker;
 Ticker ledTicker;
@@ -85,19 +79,36 @@ int main(void) {
     ble.gap().setAdvertisingInterval(1000); // milli seconds
     ble.gap().startAdvertising();
 
-//    acc.setBitDepth(MMA8452::BIT_DEPTH_8);
-//    acc.setDynamicRange(MMA8452::DYNAMIC_RANGE_2G);
-//    acc.setDataRate(MMA8452::RATE_100);
+    accelerometer.setBitDepth(MMA8452::BIT_DEPTH_8);
+    accelerometer.setDynamicRange(MMA8452::DYNAMIC_RANGE_2G);
+    accelerometer.setDataRate(MMA8452::RATE_100);
+
+    if (accelerometer.activate() != 0) {
+        if (accelerometer.getStatus((char *) monitorService.getStatus()) != 0) {
+            (*monitorService.getStatus()) = 0xE0;
+        }
+        monitorService.updateStatus();
+    }
 
     // infinite loop
     while (1) {
         if (triggerSensorPolling && ble.getGapState().connected) {
             triggerSensorPolling = false;
-//            int z = 0;
-//            acc.readZCount(&z);
-//            monitorService.addValue(z);
-            monitorService.addValue(acc.getAccX() * 0xFF);
-            // monitorService.addValue(sensor.read_u16());
+            int z = 0;
+            if (accelerometer.isZReady()) {
+                if (accelerometer.readZCount(&z) == 0) { 
+                    monitorService.addValue(z & 0xFF);
+                } else {
+                    monitorService.addValue(0xE1);
+                    accelerometer.getStatus((char *) monitorService.getStatus());
+                    monitorService.updateStatus();
+                }
+            } else {
+                monitorService.addValue(0xE0);
+                accelerometer.getStatus((char *) monitorService.getStatus());
+                monitorService.updateStatus();
+            }
+//            monitorService.addValue(sensor.read_u16());
         }
         ble.waitForEvent(); // low power wait for event
     }
