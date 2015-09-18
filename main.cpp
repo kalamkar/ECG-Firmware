@@ -52,6 +52,8 @@ BLE ble;
 
 AnalogIn sensor(P0_4);
 
+short accelZ = 0;
+
 volatile bool triggerSensorPolling = false;
 
 void triggerSensor() {
@@ -63,7 +65,7 @@ void onButtonPress(void) {
 }
 
 void onTap(unsigned char direction, unsigned char count) {
-    LOG("Tap motion detected\n");
+    LOG("Tap motion detected, accelZ %d\n", accelZ);
 }
 
 void onOrientationChange(unsigned char orientation) {
@@ -71,26 +73,32 @@ void onOrientationChange(unsigned char orientation) {
 }
 
 void updatesEnabledCallback(Gap::Handle_t handle) {
-    red = 0; green = 0; blue = 1;
+    red = 1; green = 1; blue = 0;
+    LOG("Updates enabled.\n");
 }
 
 void updatesDisabledCallback(Gap::Handle_t handle) {
-    red = 0; green = 1; blue = 1;
+    red = 1; green = 0; blue = 0;
+    LOG("Updates disabled.\n");
 }
     
 void connectionCallback(const Gap::ConnectionCallbackParams_t *) {
     ble.stopAdvertising();
-    red = 0; green = 1; blue = 1;
+    red = 1; green = 0; blue = 0;
+    LOG("Connected to device.\n");
 }
 
 void disconnectionCallback(Gap::Handle_t handle, Gap::DisconnectionReason_t reason) {
     ble.startAdvertising();
-    red = 0; green = 1; blue = 0;
+    red = 1; green = 0; blue = 1;
+    LOG("Disconnected from device.\n");
 }
 
 int main(void) {
+    red = 1; green = 0; blue = 1;
+    
     pc.baud(115200);
-    LOG("---- Dovetail Monitor ----\n");
+    LOG("\n-------- Starting Pregnansi monitor --------\n");
 
     button.fall(onButtonPress);
 
@@ -103,8 +111,6 @@ int main(void) {
 //    UARTService uartService(ble);
 
     startAdvertising(ble, (uint8_t *) uuid16_list, DEVICE_NAME);
-    
-    red = 0; green = 1; blue = 0;
 
     // infinite loop
     while (true) {
@@ -140,7 +146,10 @@ int main(void) {
                 }
                 if (sensors & INV_XYZ_ACCEL) {
                     // LOG("ACC: %d, %d, %d\n", accel[0], accel[1], accel[2]);
-                    monitorService.addValue(accel[2]);
+                    accelZ = accel[2];
+                    uint16_t value = accel[2] >= 0x8000 ? 0x8000 : accel[2] <0 -0x8000 ? 0
+                            : accel[2] + 0x8000;
+                    monitorService.addValue(value >> 8);
                 }
 
                 /* Unlike gyro and accel, quaternions are written to the FIFO in

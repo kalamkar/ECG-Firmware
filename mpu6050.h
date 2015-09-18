@@ -5,21 +5,19 @@
 #define MPU6050_SCL p13
 
 #define DEFAULT_MPU_HZ  (100)
+#define TAP_THRESHOLD 5
 
 InterruptIn motionProbe(p14);
 
 extern Serial pc;
 
-extern void triggerSensor();
-
-// volatile uint8_t motion_event = 0;
 static signed char board_orientation[9] = {
     1, 0, 0,
     0, 1, 0,
     0, 0, 1
 };
 
-
+extern void triggerSensor();
 extern void onTap(unsigned char direction, unsigned char count);
 extern void onOrientationChange(unsigned char orientation);
 
@@ -32,7 +30,7 @@ void check_i2c_bus(void) {
     int scl_level = scl;
     int sda_level = sda;
     if (scl_level == 0 || sda_level == 0) {
-        printf("scl: %d, sda: %d, i2c bus is not released\r\n", scl_level, sda_level);
+        LOG("scl: %d, sda: %d, i2c bus is not released\r\n", scl_level, sda_level);
         
         scl.output();
         for (int i = 0; i < 8; i++) {
@@ -48,7 +46,7 @@ void check_i2c_bus(void) {
     scl_level = scl;
     sda_level = sda;
     if (scl_level == 0 || sda_level == 0) {
-        printf("scl: %d, sda: %d, i2c bus is still not released\r\n", scl_level, sda_level);
+        LOG("scl: %d, sda: %d, i2c bus is still not released\r\n", scl_level, sda_level);
     }
 }
 
@@ -126,15 +124,14 @@ void initMotionProcessor() {
     dmp_register_tap_cb(onTap);
     dmp_register_android_orient_cb(onOrientationChange);
     
-    uint16_t dmp_features = DMP_FEATURE_6X_LP_QUAT | DMP_FEATURE_TAP |
-                       DMP_FEATURE_ANDROID_ORIENT | DMP_FEATURE_SEND_RAW_ACCEL | DMP_FEATURE_SEND_CAL_GYRO |
-                       DMP_FEATURE_GYRO_CAL;
+    uint16_t dmp_features = DMP_FEATURE_6X_LP_QUAT | DMP_FEATURE_TAP | DMP_FEATURE_ANDROID_ORIENT
+            | DMP_FEATURE_SEND_RAW_ACCEL | DMP_FEATURE_SEND_CAL_GYRO | DMP_FEATURE_GYRO_CAL;
     dmp_enable_feature(dmp_features);
     dmp_set_fifo_rate(DEFAULT_MPU_HZ);
     mpu_set_dmp_state(1);
     
 //     dmp_set_interrupt_mode(DMP_INT_GESTURE);
-    dmp_set_tap_thresh(TAP_XYZ, 50);
+    dmp_set_tap_thresh(TAP_Z, TAP_THRESHOLD);
 }
 
 #endif /* #ifndef __MPU_6050_H__ */
