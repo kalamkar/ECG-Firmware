@@ -5,30 +5,45 @@
 
 #include "BLE.h"
 
+
+static const uint8_t  BASE_UUID[] = {
+    0x40, 0x48, 0x46, 0xa0, 0x60, 0x8a, 0x11, 0xe5,
+    0xab, 0x45, 0x00, 0x02, 0xa5, 0xd5, 0xc5, 0x1b
+};
+static const uint16_t SHORT_UUID_SERVICE      = 0x46A0;
+static const uint16_t SHORT_UUID_CHAR_DATA    = 0x46A1;
+static const uint16_t SHORT_UUID_CHAR_PEAK    = 0x46A2;
+static const uint16_t SHORT_UUID_CHAR_STATUS  = 0x46A3;
+    
+static const uint8_t  UUID_SERVICE[] = {
+    0x40, 0x48, (uint8_t)(SHORT_UUID_SERVICE >> 8), (uint8_t)(SHORT_UUID_SERVICE & 0xFF),
+    0x60, 0x8a, 0x11, 0xe5, 0xab, 0x45, 0x00, 0x02, 0xa5, 0xd5, 0xc5, 0x1b
+};
+static const uint8_t  UUID_CHAR_DATA[] = {
+    0x40, 0x48, (uint8_t)(SHORT_UUID_CHAR_DATA >> 8), (uint8_t)(SHORT_UUID_CHAR_DATA & 0xFF),
+    0x60, 0x8a, 0x11, 0xe5, 0xab, 0x45, 0x00, 0x02, 0xa5, 0xd5, 0xc5, 0x1b
+};
+static const uint8_t  UUID_CHAR_PEAK[] = {
+    0x40, 0x48, (uint8_t)(SHORT_UUID_CHAR_PEAK >> 8), (uint8_t)(SHORT_UUID_CHAR_PEAK & 0xFF),
+    0x60, 0x8a, 0x11, 0xe5, 0xab, 0x45, 0x00, 0x02, 0xa5, 0xd5, 0xc5, 0x1b
+};
+
 class NotifyReadService {
 public:
 
     static const unsigned SENSOR_MAX        = 0xFF;
-    
-    static const unsigned UUID_SERVICE      = 0x1901;
-    static const unsigned UUID_CHAR_DATA    = 0x1902;
-    static const unsigned UUID_CHAR_PEAK    = 0x1903;
-    static const unsigned UUID_CHAR_STATUS  = 0x1904;
     static const uint16_t MAX_DATA_LEN      = 512;
 
     NotifyReadService(BLE &_ble) :
         ble(_ble),
         length(0),
-        statusValue(0),
         sampleMax(0),
         sensorData(UUID_CHAR_DATA, data, 0, MAX_DATA_LEN,
                     GattCharacteristic::BLE_GATT_CHAR_PROPERTIES_READ),
         peak(UUID_CHAR_PEAK, &peakPercent, sizeof(peakPercent), sizeof(peakPercent),
-                    GattCharacteristic::BLE_GATT_CHAR_PROPERTIES_NOTIFY),
-        status(UUID_CHAR_STATUS, &statusValue, sizeof(statusValue), sizeof(statusValue),
                     GattCharacteristic::BLE_GATT_CHAR_PROPERTIES_NOTIFY) {
-        GattCharacteristic *charTable[] = {&sensorData, &peak, &status};
-        GattService         monitorService(NotifyReadService::UUID_SERVICE, charTable, 3);
+        GattCharacteristic *charTable[] = {&sensorData, &peak};
+        GattService         monitorService(UUID_SERVICE, charTable, 2);
         ble.addService(monitorService);
     }
     
@@ -50,14 +65,6 @@ public:
             sampleMin = SENSOR_MAX;
         }
     }
-    
-    void updateStatus() {
-        ble.updateCharacteristicValue(status.getValueHandle(), &statusValue, sizeof(statusValue));
-    }
-    
-    uint8_t* getStatus() {
-        return &statusValue;
-    }
 
 private:
     BLEDevice           &ble;
@@ -65,7 +72,6 @@ private:
     uint8_t             buffer[MAX_DATA_LEN];
     uint16_t            length;
     uint8_t             data[MAX_DATA_LEN];
-    uint8_t             statusValue;
     
     uint8_t             peakPercent;
     uint8_t             sampleMax;
@@ -73,7 +79,6 @@ private:
 
     GattCharacteristic  sensorData;
     GattCharacteristic  peak;
-    GattCharacteristic  status;
 };
 
 #endif /* #ifndef __NOTIFY_READ_SERVICE_H__*/

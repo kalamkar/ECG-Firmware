@@ -5,8 +5,10 @@
 
 #include "inv_mpu.h"
 #include "inv_mpu_dmp_motion_driver.h"
+#include "tiny_ble.h"
 
 #include "Bluetooth.h"
+#include "BatteryService.h"
 #include "DFUService.h"
 #include "UARTService.h"
 #include "DeviceInformationService.h"
@@ -16,29 +18,21 @@
 
 #include "mpu6050.h"
 
-#define LED_GREEN   p21
-#define LED_RED     p22
-#define LED_BLUE    p23
-#define BUTTON_PIN  p17
-#define BATTERY_PIN p1
+#define MFR_NAME    "Dovetail Monitor"
+#define MODEL_NUM   "Model1"
+#define SERIAL_NUM  "SN1"
+#define HW_REV      "hw-rev1"
+#define FW_REV      "fw-rev1"
+#define SW_REV      "soft-rev1"
 
-#define UART_TX     p9
-#define UART_RX     p11
-#define UART_CTS    p8
-#define UART_RTS    p10
-
-#define MFR_NAME "Dovetail Monitor"
-#define MODEL_NUM "Model1"
-#define SERIAL_NUM "SN1"
-#define HW_REV "hw-rev1"
-#define FW_REV "fw-rev1"
-#define SW_REV "soft-rev1"
+#define BATTERY_READ_SECS   30
 
 const static char     DEVICE_NAME[]        = "Pregnansi";
-static const uint16_t uuid16_list[]        = {NotifyReadService::UUID_SERVICE,
-                                              GattService::UUID_DEVICE_INFORMATION_SERVICE}; //,
-//                                              UARTServiceShortUUID,
-//                                              DFUServiceShortUUID};
+static const uint16_t uuid16_list[]        = { SHORT_UUID_SERVICE,
+                                               GattService::UUID_DEVICE_INFORMATION_SERVICE,
+                                               DFUServiceShortUUID,
+//                                               UARTServiceShortUUID,
+                                               GattService::UUID_BATTERY_SERVICE};
 
 DigitalOut blue(LED_BLUE);
 DigitalOut green(LED_GREEN);
@@ -49,15 +43,19 @@ AnalogIn    battery(BATTERY_PIN);
 Serial      pc(UART_TX, UART_RX);
 
 BLE ble;
-
-AnalogIn sensor(P0_4);
+Ticker batteryTicker;
 
 short accelZ = 0;
 
 volatile bool triggerSensorPolling = false;
+volatile bool readBattery = false;
 
-void triggerSensor() {
+void triggerSensor(void) {
     triggerSensorPolling = true;
+}
+
+void triggerBattery(void) {
+    readBattery = true;
 }
 
 void onButtonPress(void) {
@@ -84,12 +82,14 @@ void updatesDisabledCallback(Gap::Handle_t handle) {
     
 void connectionCallback(const Gap::ConnectionCallbackParams_t *) {
     ble.stopAdvertising();
+    batteryTicker.attach(triggerBattery, BATTERY_READ_SECS);
     red = 1; green = 0; blue = 0;
     LOG("Connected to device.\n");
 }
 
 void disconnectionCallback(Gap::Handle_t handle, Gap::DisconnectionReason_t reason) {
     ble.startAdvertising();
+    batteryTicker.detach();
     red = 1; green = 0; blue = 1;
     LOG("Disconnected from device.\n");
 }
@@ -107,13 +107,20 @@ int main(void) {
 
     NotifyReadService monitorService(ble);
     DeviceInformationService deviceInfo(ble, MFR_NAME, MODEL_NUM, SERIAL_NUM, HW_REV, FW_REV, SW_REV);
-//    DFUService dfu(ble);
+    DFUService dfu(ble);
 //    UARTService uartService(ble);
+    BatteryService batteryService(ble);
 
     startAdvertising(ble, (uint8_t *) uuid16_list, DEVICE_NAME);
 
     // infinite loop
     while (true) {
+        if (readBattery && ble.getGapState().connected) {
+            readBattery = false;
+            uint8_t levelPercent = battery.read_u16() * (1.0f / (float)0x3FF) * 1.2 * 12.2 / 2.2;
+            batteryService.updateBatteryLevel(levelPercent);
+        }
+        
         if (triggerSensorPolling && ble.getGapState().connected) {
             triggerSensorPolling = false;
 
@@ -123,27 +130,11 @@ int main(void) {
             unsigned char more = 1;
 
             while (more) {
-                /* This function gets new data from the FIFO when the DMP is in
-                 * use. The FIFO can contain any combination of gyro, accel,
-                 * quaternion, and gesture data. The sensors parameter tells the
-                 * caller which data fields were actually populated with new data.
-                 * For example, if sensors == (INV_XYZ_GYRO | INV_WXYZ_QUAT), then
-                 * the FIFO isn't being filled with accel data.
-                 * The driver parses the gesture data to determine if a gesture
-                 * event has occurred; on an event, the application will be notified
-                 * via a callback (assuming that a callback function was properly
-                 * registered). The more parameter is non-zero if there are
-                 * leftover packets in the FIFO.
-                 */
                 dmp_read_fifo(gyro, accel, quat, &sensor_timestamp, &sensors, &more);
-                /* Gyro and accel data are written to the FIFO by the DMP in chip
-                 * frame and hardware units. This behavior is convenient because it
-                 * keeps the gyro and accel outputs of dmp_read_fifo and
-                 * mpu_read_fifo consistent.
-                 */
                 if (sensors & INV_XYZ_GYRO) {
                     // LOG("GYRO: %d, %d, %d\n", gyro[0], gyro[1], gyro[2]);
                 }
+
                 if (sensors & INV_XYZ_ACCEL) {
                     // LOG("ACC: %d, %d, %d\n", accel[0], accel[1], accel[2]);
                     accelZ = accel[2];
@@ -152,16 +143,10 @@ int main(void) {
                     monitorService.addValue(value >> 8);
                 }
 
-                /* Unlike gyro and accel, quaternions are written to the FIFO in
-                 * the body frame, q30. The orientation is set by the scalar passed
-                 * to dmp_set_orientation during initialization.
-                 */
                 if (sensors & INV_WXYZ_QUAT) {
                     // LOG("QUAT: %ld, %ld, %ld, %ld\n", quat[0], quat[1], quat[2], quat[3]);
                 }
             }
-
-            // monitorService.addValue(sensor.read_u16());
         }
         ble.waitForEvent(); // low power wait for event
     }
