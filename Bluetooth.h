@@ -28,7 +28,7 @@ void startAdvertising(BLE &ble, uint8_t *uuid16_list, const char *deviceName) {
     ble.gap().accumulateAdvertisingPayload(GapAdvertisingData::COMPLETE_LOCAL_NAME,
                                     (uint8_t *) deviceName, strlen(deviceName));
     ble.gap().setAdvertisingType(GapAdvertisingParams::ADV_CONNECTABLE_UNDIRECTED);
-    ble.gap().setAdvertisingInterval(1000); // milli seconds
+    ble.gap().setAdvertisingInterval(300); // milli seconds
     ble.gap().startAdvertising();
 }
 

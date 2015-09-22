@@ -39,13 +39,13 @@ DigitalOut green(LED_GREEN);
 DigitalOut red(LED_RED);
 
 InterruptIn button(BUTTON_PIN);
+InterruptIn motionProbe(p14);
 AnalogIn    battery(BATTERY_PIN);
 Serial      pc(UART_TX, UART_RX);
 
 BLE ble;
+// Ticker sensorTicker;
 Ticker batteryTicker;
-
-short accelZ = 0;
 
 volatile bool triggerSensorPolling = false;
 volatile bool readBattery = false;
@@ -63,7 +63,7 @@ void onButtonPress(void) {
 }
 
 void onTap(unsigned char direction, unsigned char count) {
-    LOG("Tap motion detected, accelZ %d\n", accelZ);
+    LOG("Tap motion detected\n");
 }
 
 void onOrientationChange(unsigned char orientation) {
@@ -71,18 +71,21 @@ void onOrientationChange(unsigned char orientation) {
 }
 
 void updatesEnabledCallback(Gap::Handle_t handle) {
+    // sensorTicker.attach(&triggerSensor, 0.01); // Trigger Sensor every 10 milliseconds
+    motionProbe.fall(&triggerSensor);
     red = 1; green = 1; blue = 0;
     LOG("Updates enabled.\n");
 }
 
 void updatesDisabledCallback(Gap::Handle_t handle) {
+    // sensorTicker.detach();
     red = 1; green = 0; blue = 0;
     LOG("Updates disabled.\n");
 }
     
 void connectionCallback(const Gap::ConnectionCallbackParams_t *) {
     ble.stopAdvertising();
-    batteryTicker.attach(triggerBattery, BATTERY_READ_SECS);
+    batteryTicker.attach(&triggerBattery, BATTERY_READ_SECS);
     red = 1; green = 0; blue = 0;
     LOG("Connected to device.\n");
 }
@@ -137,7 +140,6 @@ int main(void) {
 
                 if (sensors & INV_XYZ_ACCEL) {
                     // LOG("ACC: %d, %d, %d\n", accel[0], accel[1], accel[2]);
-                    accelZ = accel[2];
                     uint16_t value = accel[2] >= 0x8000 ? 0x8000 : accel[2] <0 -0x8000 ? 0
                             : accel[2] + 0x8000;
                     monitorService.addValue(value >> 8);

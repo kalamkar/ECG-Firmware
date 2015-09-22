@@ -7,8 +7,6 @@
 #define DEFAULT_MPU_HZ  (100)
 #define TAP_THRESHOLD 5
 
-InterruptIn motionProbe(p14);
-
 extern Serial pc;
 
 static signed char board_orientation[9] = {
@@ -17,7 +15,6 @@ static signed char board_orientation[9] = {
     0, 0, 1
 };
 
-extern void triggerSensor();
 extern void onTap(unsigned char direction, unsigned char count);
 extern void onOrientationChange(unsigned char orientation);
 
@@ -98,7 +95,6 @@ void initMotionProcessor() {
     check_i2c_bus();
 
     mbed_i2c_init(MPU6050_SDA, MPU6050_SCL);
-    motionProbe.fall(triggerSensor);
 
     if (mpu_init(0)) {
         LOG("failed to initialize mpu6050\r\n");
@@ -110,19 +106,19 @@ void initMotionProcessor() {
     /* Push both gyro and accel data into the FIFO. */
     mpu_configure_fifo(INV_XYZ_GYRO | INV_XYZ_ACCEL);
     mpu_set_sample_rate(DEFAULT_MPU_HZ);
-    
+
     /* Read back configuration in case it was set improperly. */
     unsigned char accel_fsr;
     unsigned short gyro_rate, gyro_fsr;
     mpu_get_sample_rate(&gyro_rate);
     mpu_get_gyro_fsr(&gyro_fsr);
     mpu_get_accel_fsr(&accel_fsr);
-    
+
     dmp_load_motion_driver_firmware();
     dmp_set_orientation(
         inv_orientation_matrix_to_scalar(board_orientation));
-    dmp_register_tap_cb(onTap);
-    dmp_register_android_orient_cb(onOrientationChange);
+    dmp_register_tap_cb(&onTap);
+    dmp_register_android_orient_cb(&onOrientationChange);
     
     uint16_t dmp_features = DMP_FEATURE_6X_LP_QUAT | DMP_FEATURE_TAP | DMP_FEATURE_ANDROID_ORIENT
             | DMP_FEATURE_SEND_RAW_ACCEL | DMP_FEATURE_SEND_CAL_GYRO | DMP_FEATURE_GYRO_CAL;
