@@ -92,7 +92,7 @@ void disconnectionCallback(Gap::Handle_t handle, Gap::DisconnectionReason_t reas
 
 int main(void) {
     red = 0; green = 1; blue = 1;
-    
+
     pc.baud(115200);
     LOG("\n--- Pregnansi Monitor ---\n");
 
@@ -108,14 +108,14 @@ int main(void) {
     BatteryService batteryService(ble);
 
     startAdvertising(ble, (uint8_t *) SERVICES, DEVICE_NAME);
-    
+
     LOG("Initializing Motion Processor...\n");
     initMotionProcessor();
     LOG("Motion Processor initialized.\n");
-    
+
     sensorTicker.attach(&triggerSensor, 0.01); // Trigger Sensor every 10 milliseconds
     // motionProbe.fall(&triggerSensor);
-    
+
     red = 1; green = 0; blue = 0;
 
     // infinite loop
@@ -124,13 +124,13 @@ int main(void) {
             readBattery = false;
             uint8_t levelPercent = battery.read_u16() * (1.0f / (float)0x3FF) * 1.2 * 12.2 / 2.2;
             batteryService.updateBatteryLevel(levelPercent);
-            
+
             unsigned long steps = 0;
             if(dmp_get_pedometer_step_count(&steps) == 0) {
                 LOG("Step count is %lu\n", steps);
             }
         }
-        
+
         if (triggerSensorPolling && ble.getGapState().connected) {
             triggerSensorPolling = false;
 

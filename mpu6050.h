@@ -24,14 +24,14 @@ extern void onOrientationChange(unsigned char orientation);
 void check_i2c_bus(void) {
     DigitalInOut scl(MPU6050_SCL);
     DigitalInOut sda(MPU6050_SDA);
-    
+
     scl.input();
     sda.input();
     int scl_level = scl;
     int sda_level = sda;
     if (scl_level == 0 || sda_level == 0) {
         LOG("scl: %d, sda: %d, i2c bus is not released\r\n", scl_level, sda_level);
-        
+
         scl.output();
         for (int i = 0; i < 8; i++) {
             scl = 0;
@@ -40,9 +40,9 @@ void check_i2c_bus(void) {
             wait_us(10);
         }
     }
-    
+
     scl.input();
-    
+
     scl_level = scl;
     sda_level = sda;
     if (scl_level == 0 || sda_level == 0) {
@@ -102,7 +102,7 @@ void initMotionProcessor() {
     if (mpu_init(0)) {
         LOG("failed to initialize mpu6050\r\n");
     }
-    
+
     /* Get/set hardware configuration. Start gyro. */
     /* Wake up all sensors. */
     mpu_set_sensors(INV_XYZ_GYRO | INV_XYZ_ACCEL);
@@ -122,7 +122,7 @@ void initMotionProcessor() {
         inv_orientation_matrix_to_scalar(board_orientation));
     dmp_register_tap_cb(&onTap);
     dmp_register_android_orient_cb(&onOrientationChange);
-    
+
     uint16_t dmp_features = DMP_FEATURE_PEDOMETER | DMP_FEATURE_TAP | DMP_FEATURE_ANDROID_ORIENT
             | DMP_FEATURE_SEND_RAW_ACCEL | DMP_FEATURE_SEND_CAL_GYRO | DMP_FEATURE_GYRO_CAL;
     dmp_enable_feature(dmp_features);
