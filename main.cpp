@@ -10,7 +10,6 @@
 #include "Bluetooth.h"
 #include "BatteryService.h"
 #include "DFUService.h"
-#include "UARTService.h"
 #include "DeviceInformationService.h"
 #include "NotifyReadService.h"
 
@@ -25,27 +24,28 @@
 #define FW_REV      "fw-rev1"
 #define SW_REV      "soft-rev1"
 
-#define BATTERY_READ_SECS   30
+#define BATTERY_READ_INTERVAL_SECS      30
+#define CONNECTED_BLINK_INTERVAL_SECS   2
 
-const static char     DEVICE_NAME[]        = "Pregnansi";
-static const uint16_t uuid16_list[]        = { SHORT_UUID_SERVICE,
-                                               GattService::UUID_DEVICE_INFORMATION_SERVICE,
-                                               DFUServiceShortUUID,
-//                                               UARTServiceShortUUID,
-                                               GattService::UUID_BATTERY_SERVICE};
+const static char     DEVICE_NAME[]     = "Pregnansi";
+static const uint16_t SERVICES[]        = { SHORT_UUID_SERVICE,
+                                            GattService::UUID_DEVICE_INFORMATION_SERVICE,
+                                            DFUServiceShortUUID,
+                                            GattService::UUID_BATTERY_SERVICE};
 
 DigitalOut blue(LED_BLUE);
 DigitalOut green(LED_GREEN);
 DigitalOut red(LED_RED);
 
 InterruptIn button(BUTTON_PIN);
-InterruptIn motionProbe(p14);
+// InterruptIn motionProbe(p14);
 AnalogIn    battery(BATTERY_PIN);
 Serial      pc(UART_TX, UART_RX);
 
 BLE ble;
-// Ticker sensorTicker;
+Ticker sensorTicker;
 Ticker batteryTicker;
+Ticker connectionTicker;
 
 volatile bool triggerSensorPolling = false;
 volatile bool readBattery = false;
@@ -58,63 +58,65 @@ void triggerBattery(void) {
     readBattery = true;
 }
 
+void toggleLED(void) {
+    blue = !blue;
+}
+
 void onButtonPress(void) {
     LOG("Button pressed\n");
 }
 
 void onTap(unsigned char direction, unsigned char count) {
-    LOG("Tap motion detected\n");
+    LOG("Tap motion detected dir %d and strength %d\n", direction, count);
 }
 
 void onOrientationChange(unsigned char orientation) {
-    LOG("Oriention changed\n");
+    LOG("Oriention changed %d\n", orientation);
 }
 
-void updatesEnabledCallback(Gap::Handle_t handle) {
-    // sensorTicker.attach(&triggerSensor, 0.01); // Trigger Sensor every 10 milliseconds
-    motionProbe.fall(&triggerSensor);
-    red = 1; green = 1; blue = 0;
-    LOG("Updates enabled.\n");
-}
-
-void updatesDisabledCallback(Gap::Handle_t handle) {
-    // sensorTicker.detach();
-    red = 1; green = 0; blue = 0;
-    LOG("Updates disabled.\n");
-}
-    
 void connectionCallback(const Gap::ConnectionCallbackParams_t *) {
     ble.stopAdvertising();
-    batteryTicker.attach(&triggerBattery, BATTERY_READ_SECS);
-    red = 1; green = 0; blue = 0;
+    batteryTicker.attach(&triggerBattery, BATTERY_READ_INTERVAL_SECS);
+    connectionTicker.attach(&toggleLED, CONNECTED_BLINK_INTERVAL_SECS);
+    red = 1; green = 0; blue = 1;
     LOG("Connected to device.\n");
 }
 
 void disconnectionCallback(Gap::Handle_t handle, Gap::DisconnectionReason_t reason) {
     ble.startAdvertising();
     batteryTicker.detach();
-    red = 1; green = 0; blue = 1;
+    connectionTicker.detach();
+    red = 1; green = 0; blue = 0;
     LOG("Disconnected from device.\n");
 }
 
 int main(void) {
-    red = 1; green = 0; blue = 1;
+    red = 0; green = 1; blue = 1;
     
     pc.baud(115200);
-    LOG("\n-------- Starting Pregnansi monitor --------\n");
+    LOG("\n--- Pregnansi Monitor ---\n");
 
     button.fall(onButtonPress);
 
-    initMotionProcessor();
+    LOG("Initializing BTLE...\n");
     initBluetooth(ble);
+    LOG("BTLE Initialized.\n");
 
     NotifyReadService monitorService(ble);
     DeviceInformationService deviceInfo(ble, MFR_NAME, MODEL_NUM, SERIAL_NUM, HW_REV, FW_REV, SW_REV);
     DFUService dfu(ble);
-//    UARTService uartService(ble);
     BatteryService batteryService(ble);
 
-    startAdvertising(ble, (uint8_t *) uuid16_list, DEVICE_NAME);
+    startAdvertising(ble, (uint8_t *) SERVICES, DEVICE_NAME);
+    
+    LOG("Initializing Motion Processor...\n");
+    initMotionProcessor();
+    LOG("Motion Processor initialized.\n");
+    
+    sensorTicker.attach(&triggerSensor, 0.01); // Trigger Sensor every 10 milliseconds
+    // motionProbe.fall(&triggerSensor);
+    
+    red = 1; green = 0; blue = 0;
 
     // infinite loop
     while (true) {
@@ -122,6 +124,11 @@ int main(void) {
             readBattery = false;
             uint8_t levelPercent = battery.read_u16() * (1.0f / (float)0x3FF) * 1.2 * 12.2 / 2.2;
             batteryService.updateBatteryLevel(levelPercent);
+            
+            unsigned long steps = 0;
+            if(dmp_get_pedometer_step_count(&steps) == 0) {
+                LOG("Step count is %lu\n", steps);
+            }
         }
         
         if (triggerSensorPolling && ble.getGapState().connected) {

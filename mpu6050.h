@@ -5,7 +5,10 @@
 #define MPU6050_SCL p13
 
 #define DEFAULT_MPU_HZ  (100)
-#define TAP_THRESHOLD 5
+
+#define TAP_THRESHOLD 50
+#define SHAKE_REJECT_TIME_MILLIS 500
+#define SHAKE_REJECT_TIMEOUT_MILLIS 2000
 
 extern Serial pc;
 
@@ -120,14 +123,16 @@ void initMotionProcessor() {
     dmp_register_tap_cb(&onTap);
     dmp_register_android_orient_cb(&onOrientationChange);
     
-    uint16_t dmp_features = DMP_FEATURE_6X_LP_QUAT | DMP_FEATURE_TAP | DMP_FEATURE_ANDROID_ORIENT
+    uint16_t dmp_features = DMP_FEATURE_PEDOMETER | DMP_FEATURE_TAP | DMP_FEATURE_ANDROID_ORIENT
             | DMP_FEATURE_SEND_RAW_ACCEL | DMP_FEATURE_SEND_CAL_GYRO | DMP_FEATURE_GYRO_CAL;
     dmp_enable_feature(dmp_features);
     dmp_set_fifo_rate(DEFAULT_MPU_HZ);
     mpu_set_dmp_state(1);
-    
-//     dmp_set_interrupt_mode(DMP_INT_GESTURE);
+
     dmp_set_tap_thresh(TAP_Z, TAP_THRESHOLD);
+    // dmp_set_shake_reject_thresh(1000, 500);
+    // dmp_set_shake_reject_time(SHAKE_REJECT_TIME_MILLIS);
+    // dmp_set_shake_reject_timeout(SHAKE_REJECT_TIMEOUT_MILLIS);
 }
 
 #endif /* #ifndef __MPU_6050_H__ */
