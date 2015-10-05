@@ -42,7 +42,7 @@ InterruptIn button(BUTTON_PIN);
 AnalogIn    battery(BATTERY_PIN);
 Serial      pc(UART_TX, UART_RX);
 
-BLE ble;
+BLEDevice ble;
 Ticker sensorTicker;
 Ticker batteryTicker;
 Ticker connectionTicker;
@@ -74,7 +74,8 @@ void onOrientationChange(unsigned char orientation) {
     LOG("Oriention changed %d\n", orientation);
 }
 
-void connectionCallback(const Gap::ConnectionCallbackParams_t *) {
+// void connectionCallback(const Gap::ConnectionCallbackParams_t *) {
+void connectionCallback(Gap::Handle_t handle, Gap::addr_type_t peerAddrType, const Gap::address_t peerAddr, const Gap::ConnectionParams_t *params) {
     ble.stopAdvertising();
     batteryTicker.attach(&triggerBattery, BATTERY_READ_INTERVAL_SECS);
     connectionTicker.attach(&toggleLED, CONNECTED_BLINK_INTERVAL_SECS);
@@ -82,6 +83,7 @@ void connectionCallback(const Gap::ConnectionCallbackParams_t *) {
     LOG("Connected to device.\n");
 }
 
+// void disconnectionCallback(const Gap::DisconnectionCallbackParams_t *) {
 void disconnectionCallback(Gap::Handle_t handle, Gap::DisconnectionReason_t reason) {
     ble.startAdvertising();
     batteryTicker.detach();

@@ -3,9 +3,6 @@
 #ifndef __NOTIFY_READ_SERVICE_H__
 #define __NOTIFY_READ_SERVICE_H__
 
-#include "BLE.h"
-
-
 static const uint8_t  BASE_UUID[] = {
     0x40, 0x48, 0x46, 0xa0, 0x60, 0x8a, 0x11, 0xe5,
     0xab, 0x45, 0x00, 0x02, 0xa5, 0xd5, 0xc5, 0x1b
@@ -34,7 +31,7 @@ public:
     static const unsigned SENSOR_MAX        = 0xFF;
     static const uint16_t MAX_DATA_LEN      = 512;
 
-    NotifyReadService(BLE &_ble) :
+    NotifyReadService(BLEDevice &_ble) :
         ble(_ble),
         length(0),
         sampleMax(0),
