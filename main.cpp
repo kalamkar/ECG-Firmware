@@ -49,6 +49,7 @@ Ticker connectionTicker;
 
 volatile bool triggerSensorPolling = false;
 volatile bool readBattery = false;
+volatile bool switchedOff = false;
 
 void triggerSensor(void) {
     triggerSensorPolling = true;
@@ -64,6 +65,19 @@ void toggleLED(void) {
 
 void onButtonPress(void) {
     LOG("Button pressed\n");
+    if (switchedOff) {
+        switchedOff = false;
+        ble.startAdvertising();
+        red = 1; green = 0; blue = 0;
+    } else {
+        switchedOff = true;
+        if (ble.getGapState().connected) {
+            ble.disconnect(Gap::LOCAL_HOST_TERMINATED_CONNECTION);
+        } else {
+            ble.stopAdvertising();
+        }
+        red = 1; green = 1; blue = 1;
+    }
 }
 
 void onTap(unsigned char direction, unsigned char count) {
@@ -85,10 +99,12 @@ void connectionCallback(Gap::Handle_t handle, Gap::addr_type_t peerAddrType, con
 
 // void disconnectionCallback(const Gap::DisconnectionCallbackParams_t *) {
 void disconnectionCallback(Gap::Handle_t handle, Gap::DisconnectionReason_t reason) {
-    ble.startAdvertising();
+    if (!switchedOff) {
+        ble.startAdvertising();
+        red = 1; green = 0; blue = 0;
+    }
     batteryTicker.detach();
     connectionTicker.detach();
-    red = 1; green = 0; blue = 0;
     LOG("Disconnected from device.\n");
 }
 
