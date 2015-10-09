@@ -95,6 +95,8 @@ unsigned short inv_orientation_matrix_to_scalar(const signed char *mtx){
 
 
 void initMotionProcessor() {
+    LOG("Initializing Motion Processor...\n");
+    
     check_i2c_bus();
 
     mbed_i2c_init(MPU6050_SDA, MPU6050_SCL);
@@ -120,8 +122,8 @@ void initMotionProcessor() {
     dmp_load_motion_driver_firmware();
     dmp_set_orientation(
         inv_orientation_matrix_to_scalar(board_orientation));
-    dmp_register_tap_cb(&onTap);
-    dmp_register_android_orient_cb(&onOrientationChange);
+    // dmp_register_tap_cb(&onTap);
+    // dmp_register_android_orient_cb(&onOrientationChange);
 
     uint16_t dmp_features = DMP_FEATURE_PEDOMETER | DMP_FEATURE_TAP | DMP_FEATURE_ANDROID_ORIENT
             | DMP_FEATURE_SEND_RAW_ACCEL | DMP_FEATURE_SEND_CAL_GYRO | DMP_FEATURE_GYRO_CAL;
@@ -133,6 +135,8 @@ void initMotionProcessor() {
     // dmp_set_shake_reject_thresh(1000, 500);
     // dmp_set_shake_reject_time(SHAKE_REJECT_TIME_MILLIS);
     // dmp_set_shake_reject_timeout(SHAKE_REJECT_TIMEOUT_MILLIS);
+    
+    LOG("Motion Processor initialized.\n");
 }
 
 #endif /* #ifndef __MPU_6050_H__ */

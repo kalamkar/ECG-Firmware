@@ -108,11 +108,16 @@ void disconnectionCallback(Gap::Handle_t handle, Gap::DisconnectionReason_t reas
     LOG("Disconnected from device.\n");
 }
 
+uint8_t toUint8(short num) {
+    uint16_t value = num >= 0x8000 ? 0xFF00 : num < (0-0x8000) ? 0 : num + 0x8000;
+    return value >> 8;
+}
+
 int main(void) {
     red = 0; green = 1; blue = 1;
 
     pc.baud(115200);
-    LOG("\n--- Pregnansi Monitor ---\n");
+    LOG("\n--- Pregnansi Monitor Boot ---\n");
 
     button.fall(onButtonPress);
 
@@ -126,10 +131,7 @@ int main(void) {
     BatteryService batteryService(ble);
 
     startAdvertising(ble, (uint8_t *) SERVICES, DEVICE_NAME);
-
-    LOG("Initializing Motion Processor...\n");
     initMotionProcessor();
-    LOG("Motion Processor initialized.\n");
 
     sensorTicker.attach(&triggerSensor, 0.01); // Trigger Sensor every 10 milliseconds
     // motionProbe.fall(&triggerSensor);
@@ -159,20 +161,18 @@ int main(void) {
 
             while (more) {
                 dmp_read_fifo(gyro, accel, quat, &sensor_timestamp, &sensors, &more);
-                if (sensors & INV_XYZ_GYRO) {
-                    // LOG("GYRO: %d, %d, %d\n", gyro[0], gyro[1], gyro[2]);
-                }
+//                if (sensors & INV_XYZ_GYRO) {
+//                    LOG("GYRO: %d, %d, %d\n", gyro[0], gyro[1], gyro[2]);
+//                }
 
                 if (sensors & INV_XYZ_ACCEL) {
                     // LOG("ACC: %d, %d, %d\n", accel[0], accel[1], accel[2]);
-                    uint16_t value = accel[2] >= 0x8000 ? 0x8000 : accel[2] <0 -0x8000 ? 0
-                            : accel[2] + 0x8000;
-                    monitorService.addValue(value >> 8);
+                    monitorService.addValue(toUint8(accel[0]), toUint8(accel[1]), toUint8(accel[2]));
                 }
 
-                if (sensors & INV_WXYZ_QUAT) {
-                    // LOG("QUAT: %ld, %ld, %ld, %ld\n", quat[0], quat[1], quat[2], quat[3]);
-                }
+//                if (sensors & INV_WXYZ_QUAT) {
+//                    LOG("QUAT: %ld, %ld, %ld, %ld\n", quat[0], quat[1], quat[2], quat[3]);
+//                }
             }
         }
         ble.waitForEvent(); // low power wait for event
