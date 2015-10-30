@@ -11,7 +11,7 @@
 #include "BatteryService.h"
 #include "DFUService.h"
 #include "DeviceInformationService.h"
-#include "NotifyReadService.h"
+#include "NotifyReadService1.h"
 
 #define LOG(...)    { pc.printf(__VA_ARGS__); }
 
@@ -41,6 +41,11 @@ InterruptIn button(BUTTON_PIN);
 // InterruptIn motionProbe(p14);
 AnalogIn    battery(BATTERY_PIN);
 Serial      pc(UART_TX, UART_RX);
+
+DigitalIn    lo1(p3);
+DigitalIn    lo2(p4);
+AnalogIn     ecg(p5);
+DigitalOut   ecgPower(p6);
 
 BLEDevice ble;
 Ticker sensorTicker;
@@ -93,6 +98,7 @@ void connectionCallback(Gap::Handle_t handle, Gap::addr_type_t peerAddrType, con
     ble.stopAdvertising();
     batteryTicker.attach(&triggerBattery, BATTERY_READ_INTERVAL_SECS);
     connectionTicker.attach(&toggleLED, CONNECTED_BLINK_INTERVAL_SECS);
+    ecgPower = 1;
     red = 1; green = 0; blue = 1;
     LOG("Connected to device.\n");
 }
@@ -105,6 +111,7 @@ void disconnectionCallback(Gap::Handle_t handle, Gap::DisconnectionReason_t reas
     }
     batteryTicker.detach();
     connectionTicker.detach();
+    ecgPower = 0;
     LOG("Disconnected from device.\n");
 }
 
@@ -113,8 +120,40 @@ uint8_t toUint8(short num) {
     return value >> 8;
 }
 
+void readUpdateAccel(NotifyReadService1 &monitorService) {
+    unsigned long sensor_timestamp;
+    short gyro[3], accel[3], sensors;
+    long quat[4];
+    unsigned char more = 1;
+
+    while (more) {
+        dmp_read_fifo(gyro, accel, quat, &sensor_timestamp, &sensors, &more);
+//        if (sensors & INV_XYZ_GYRO) {
+//            LOG("GYRO: %d, %d, %d\n", gyro[0], gyro[1], gyro[2]);
+//        }
+
+        if (sensors & INV_XYZ_ACCEL) {
+            // LOG("ACC: %d, %d, %d\n", accel[0], accel[1], accel[2]);
+//            monitorService.addValue(toUint8(accel[0]), toUint8(accel[1]), toUint8(accel[2]));
+        }
+
+//        if (sensors & INV_WXYZ_QUAT) {
+//            LOG("QUAT: %ld, %ld, %ld, %ld\n", quat[0], quat[1], quat[2], quat[3]);
+//        }
+    }
+
+}
+
+void readUpdateECG(NotifyReadService1 &monitorService) {
+    uint8_t value = 0;
+    if ((lo1 == 0) && (lo2 == 0)) {
+        value = ecg.read_u16() * 255 / 1023; // Convert 10-bit ADC values to 8-bit
+    }
+    monitorService.addValue(value);
+}
+
 int main(void) {
-    red = 0; green = 1; blue = 1;
+    red = 0; green = 1; blue = 1;    
 
     pc.baud(115200);
     LOG("\n--- Pregnansi Monitor Boot ---\n");
@@ -125,7 +164,7 @@ int main(void) {
     initBluetooth(ble);
     LOG("BTLE Initialized.\n");
 
-    NotifyReadService monitorService(ble);
+    NotifyReadService1 monitorService(ble);
     DeviceInformationService deviceInfo(ble, MFR_NAME, MODEL_NUM, SERIAL_NUM, HW_REV, FW_REV, SW_REV);
     DFUService dfu(ble);
     BatteryService batteryService(ble);
@@ -146,34 +185,15 @@ int main(void) {
             batteryService.updateBatteryLevel(levelPercent);
 
             unsigned long steps = 0;
-            if(dmp_get_pedometer_step_count(&steps) == 0) {
+            if (dmp_get_pedometer_step_count(&steps) == 0) {
                 LOG("Step count is %lu\n", steps);
             }
         }
 
         if (triggerSensorPolling && ble.getGapState().connected) {
             triggerSensorPolling = false;
-
-            unsigned long sensor_timestamp;
-            short gyro[3], accel[3], sensors;
-            long quat[4];
-            unsigned char more = 1;
-
-            while (more) {
-                dmp_read_fifo(gyro, accel, quat, &sensor_timestamp, &sensors, &more);
-//                if (sensors & INV_XYZ_GYRO) {
-//                    LOG("GYRO: %d, %d, %d\n", gyro[0], gyro[1], gyro[2]);
-//                }
-
-                if (sensors & INV_XYZ_ACCEL) {
-                    // LOG("ACC: %d, %d, %d\n", accel[0], accel[1], accel[2]);
-                    monitorService.addValue(toUint8(accel[0]), toUint8(accel[1]), toUint8(accel[2]));
-                }
-
-//                if (sensors & INV_WXYZ_QUAT) {
-//                    LOG("QUAT: %ld, %ld, %ld, %ld\n", quat[0], quat[1], quat[2], quat[3]);
-//                }
-            }
+            readUpdateECG(monitorService);
+            // readUpdateAccel(monitorService);
         }
         ble.waitForEvent(); // low power wait for event
     }
