@@ -1,14 +1,14 @@
 #ifndef __MPU_6050_H__
 #define __MPU_6050_H__
 
-#define MPU6050_SDA p12
-#define MPU6050_SCL p13
+#include "inv_mpu.h"
+#include "inv_mpu_dmp_motion_driver.h"
+
 
 #define DEFAULT_MPU_HZ  (100)
 
+#define TAP_COUNT 2
 #define TAP_THRESHOLD 50
-#define SHAKE_REJECT_TIME_MILLIS 500
-#define SHAKE_REJECT_TIMEOUT_MILLIS 2000
 
 extern Serial pc;
 
@@ -19,7 +19,6 @@ static signed char board_orientation[9] = {
 };
 
 extern void onTap(unsigned char direction, unsigned char count);
-extern void onOrientationChange(unsigned char orientation);
 
 void check_i2c_bus(void) {
     DigitalInOut scl(MPU6050_SCL);
@@ -96,13 +95,14 @@ unsigned short inv_orientation_matrix_to_scalar(const signed char *mtx){
 
 void initMotionProcessor() {
     LOG("Initializing Motion Processor...\n");
-    
-    check_i2c_bus();
 
+    check_i2c_bus();
+    mbed_i2c_clear(MPU6050_SDA, MPU6050_SCL);
     mbed_i2c_init(MPU6050_SDA, MPU6050_SCL);
 
     if (mpu_init(0)) {
         LOG("failed to initialize mpu6050\r\n");
+        return;
     }
 
     /* Get/set hardware configuration. Start gyro. */
@@ -122,19 +122,18 @@ void initMotionProcessor() {
     dmp_load_motion_driver_firmware();
     dmp_set_orientation(
         inv_orientation_matrix_to_scalar(board_orientation));
-    // dmp_register_tap_cb(&onTap);
-    // dmp_register_android_orient_cb(&onOrientationChange);
+    dmp_register_tap_cb(&onTap);
 
-    uint16_t dmp_features = DMP_FEATURE_PEDOMETER | DMP_FEATURE_TAP | DMP_FEATURE_ANDROID_ORIENT
-            | DMP_FEATURE_SEND_RAW_ACCEL | DMP_FEATURE_SEND_CAL_GYRO | DMP_FEATURE_GYRO_CAL;
+    uint16_t dmp_features = DMP_FEATURE_TAP | DMP_FEATURE_SEND_RAW_ACCEL;
+//    uint16_t dmp_features = DMP_FEATURE_PEDOMETER | DMP_FEATURE_TAP | DMP_FEATURE_ANDROID_ORIENT
+//            | DMP_FEATURE_SEND_RAW_ACCEL | DMP_FEATURE_SEND_CAL_GYRO | DMP_FEATURE_GYRO_CAL;
     dmp_enable_feature(dmp_features);
     dmp_set_fifo_rate(DEFAULT_MPU_HZ);
     mpu_set_dmp_state(1);
 
+    dmp_set_interrupt_mode(DMP_INT_GESTURE);
     dmp_set_tap_thresh(TAP_Z, TAP_THRESHOLD);
-    // dmp_set_shake_reject_thresh(1000, 500);
-    // dmp_set_shake_reject_time(SHAKE_REJECT_TIME_MILLIS);
-    // dmp_set_shake_reject_timeout(SHAKE_REJECT_TIMEOUT_MILLIS);
+    dmp_set_tap_count(TAP_COUNT);
     
     LOG("Motion Processor initialized.\n");
 }

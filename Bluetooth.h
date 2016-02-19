@@ -18,8 +18,7 @@ void initBluetooth(BLEDevice &ble) {
     ble.onConnection(connectionCallback);
 }
 
-void startAdvertising(BLEDevice &ble, uint8_t *uuid16_list, const char *deviceName) {
-    // Setup advertising.
+void setupAdvertising(BLEDevice &ble, uint8_t *uuid16_list, const char *deviceName) {
     ble.accumulateAdvertisingPayload(GapAdvertisingData::BREDR_NOT_SUPPORTED
                                     | GapAdvertisingData::LE_GENERAL_DISCOVERABLE);
     ble.accumulateAdvertisingPayload(GapAdvertisingData::COMPLETE_LIST_16BIT_SERVICE_IDS,
@@ -29,7 +28,6 @@ void startAdvertising(BLEDevice &ble, uint8_t *uuid16_list, const char *deviceNa
                                     (uint8_t *) deviceName, strlen(deviceName));
     ble.setAdvertisingType(GapAdvertisingParams::ADV_CONNECTABLE_UNDIRECTED);
     ble.setAdvertisingInterval(ADVERTISING_INTERVAL_MILLIS);
-    ble.startAdvertising();
 }
 
 #endif /* #ifndef __BLUETOOTH_H__ */
