@@ -3,14 +3,15 @@
 #ifndef __BLUETOOTH_H__
 #define __BLUETOOTH_H__
 
-#include "BLEDevice.h"
+#include "BLE.h"
+// #include "BLEDevice.h"
 
 #define ADVERTISING_INTERVAL_MILLIS 300
 
-// extern void connectionCallback(const Gap::ConnectionCallbackParams_t *);
-extern void connectionCallback(Gap::Handle_t handle, Gap::addr_type_t peerAddrType, const Gap::address_t peerAddr, const Gap::ConnectionParams_t *params);
-// extern void disconnectionCallback(const Gap::DisconnectionCallbackParams_t *);
-extern void disconnectionCallback(Gap::Handle_t handle, Gap::DisconnectionReason_t reason);
+extern void connectionCallback(const Gap::ConnectionCallbackParams_t *);
+// extern void connectionCallback(Gap::Handle_t handle, Gap::addr_type_t peerAddrType, const Gap::address_t peerAddr, const Gap::ConnectionParams_t *params);
+extern void disconnectionCallback(const Gap::DisconnectionCallbackParams_t *);
+// extern void disconnectionCallback(Gap::Handle_t handle, Gap::DisconnectionReason_t reason);
 
 void initBluetooth(BLEDevice &ble) {
     ble.init();

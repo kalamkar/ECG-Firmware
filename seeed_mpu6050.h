@@ -100,8 +100,9 @@ void initMotionProcessor() {
     mbed_i2c_clear(MPU6050_SDA, MPU6050_SCL);
     mbed_i2c_init(MPU6050_SDA, MPU6050_SCL);
 
-    if (mpu_init(0)) {
-        LOG("failed to initialize mpu6050\r\n");
+    int notInited = mpu_init(0);
+    if (notInited) {
+        LOG("failed to initialize mpu6050 %d\r\n", notInited);
         return;
     }
 
