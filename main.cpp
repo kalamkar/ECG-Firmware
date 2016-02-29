@@ -54,7 +54,7 @@ AnalogIn        ecg(ECG_SIGNAL);
 DigitalOut      ecgPower(SDN_BAR);
 
 Ticker          sensorTicker;
-Ticker          connectionTicker;
+Ticker          advertisingTicker;
 Ticker          idleTicker;
 
 BLEDevice       ble;
@@ -74,20 +74,31 @@ void toggleLED(void) {
     blue = !blue;
 }
 
+void startAdvertising() {
+    ble.startAdvertising();
+    deviceMode = ADVERTISING;
+    advertisingTicker.attach(&toggleLED, CONNECTED_BLINK_INTERVAL_SECS);
+    red = 1; green = 1; blue = 0;
+}
 
+void stopAdvertising() {
+    ble.stopAdvertising();
+    advertisingTicker.detach();
+}
 
 void goToSleep() {
     LOG("Device going to sleep mode.\n");
     if (ble.getGapState().connected) {
         ble.disconnect(Gap::LOCAL_HOST_TERMINATED_CONNECTION);
     } else if (deviceMode == ADVERTISING) {
-        ble.stopAdvertising();
+        stopAdvertising();
     }
+    deviceMode = SLEEPING;
     idleTicker.detach();
     red = 1; green = 1; blue = 1;
 }
 
-void maybeGoToSleep() {
+void onIdleTimeout() {
     // TODO(abhi): Add conditions for data collection to SHORT_SESSION and LONG_SESSION
     if (deviceMode == ADVERTISING || deviceMode == SHORT_SESSION || deviceMode == LONG_SESSION) {
         goToSleep();
@@ -95,11 +106,12 @@ void maybeGoToSleep() {
 }
 
 void wakeUp() {
+    if (deviceMode != SLEEPING) {
+        return;
+    }
     LOG("Woken up and starting BLE advertising.\n");
-    idleTicker.attach(&maybeGoToSleep, IDLE_TIMEOUT_SECS);
-    ble.startAdvertising();
-    deviceMode = ADVERTISING;
-    red = 0; green = 0; blue = 0;
+    idleTicker.attach(&onIdleTimeout, IDLE_TIMEOUT_SECS);
+    startAdvertising();
 }
 
 void onTap(unsigned char direction, unsigned char count) {
@@ -109,21 +121,19 @@ void onTap(unsigned char direction, unsigned char count) {
 
 void connectionCallback(const Gap::ConnectionCallbackParams_t *params) {
 // void connectionCallback(Gap::Handle_t handle, Gap::addr_type_t peerAddrType, const Gap::address_t peerAddr, const Gap::ConnectionParams_t *params) {
-    ble.stopAdvertising();
+    stopAdvertising();
+    deviceMode = SHORT_SESSION;
     sensorTicker.attach(&triggerEcg, 0.01); // Trigger Sensor every 10 milliseconds
-    connectionTicker.attach(&toggleLED, CONNECTED_BLINK_INTERVAL_SECS);
     ecgPower = 1;
-    red = 1; green = 0; blue = 1;
+    red = 1; green = 0; blue = 0;
     LOG("Connected to device.\n");
 }
 
 void disconnectionCallback(const Gap::DisconnectionCallbackParams_t *params) {
 // void disconnectionCallback(Gap::Handle_t handle, Gap::DisconnectionReason_t reason) {
-    ble.startAdvertising();
-    red = 0; green = 0; blue = 0;
     sensorTicker.detach();
-    connectionTicker.detach();
     ecgPower = 0;
+    startAdvertising();
     LOG("Disconnected from device.\n");
 }
 
