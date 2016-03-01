@@ -1,7 +1,7 @@
 // Copyright 2015 Dovetail Care Inc. All rights reserved.
 
-#ifndef __NOTIFY_READ_SERVICE_1_H__
-#define __NOTIFY_READ_SERVICE_1_H__
+#ifndef __DOVETAIL_SERVICE_H__
+#define __DOVETAIL_SERVICE_H__
 
 static const uint8_t  BASE_UUID[] = {
     0x40, 0x48, 0x46, 0xa0, 0x60, 0x8a, 0x11, 0xe5,
@@ -24,13 +24,13 @@ static const uint8_t  UUID_CHAR_DATA[] = {
     0x60, 0x8a, 0x11, 0xe5, 0xab, 0x45, 0x00, 0x02, 0xa5, 0xd5, 0xc5, 0x1b
 };
 
-class NotifyReadService1 {
+class DovetailService {
 public:
 
     static const unsigned SENSOR_MAX        = 0xFF;
     static const uint16_t MAX_DATA_LEN      = 20;
 
-    NotifyReadService1(BLEDevice &_ble) :
+    DovetailService(BLEDevice &_ble) :
         ble(_ble),
         length(0),
         peak(UUID_CHAR_PEAK, &peakPercent, sizeof(peakPercent), sizeof(peakPercent),
@@ -71,4 +71,4 @@ private:
     GattCharacteristic  sensorData;
 };
 
-#endif /* #ifndef __NOTIFY_READ_SERVICE_1_H__*/
+#endif /* #ifndef __DOVETAIL_SERVICE_H__*/

@@ -11,7 +11,7 @@
 #include "Bluetooth.h"
 #include "DFUService.h"
 #include "DeviceInformationService.h"
-#include "NotifyReadService1.h"
+#include "NotifyService.h"
 
 #include "seeed_mpu6050.h"
 
@@ -74,16 +74,10 @@ void toggleLED(void) {
     blue = !blue;
 }
 
-void startAdvertising() {
-    ble.startAdvertising();
-    deviceMode = ADVERTISING;
-    advertisingTicker.attach(&toggleLED, CONNECTED_BLINK_INTERVAL_SECS);
-    red = 1; green = 1; blue = 0;
-}
-
 void stopAdvertising() {
     ble.stopAdvertising();
     advertisingTicker.detach();
+    idleTicker.detach();
 }
 
 void goToSleep() {
@@ -94,15 +88,21 @@ void goToSleep() {
         stopAdvertising();
     }
     deviceMode = SLEEPING;
-    idleTicker.detach();
     red = 1; green = 1; blue = 1;
 }
 
 void onIdleTimeout() {
-    // TODO(abhi): Add conditions for data collection to SHORT_SESSION and LONG_SESSION
-    if (deviceMode == ADVERTISING || deviceMode == SHORT_SESSION || deviceMode == LONG_SESSION) {
+    if (deviceMode == ADVERTISING) {
         goToSleep();
     }
+}
+
+void startAdvertising() {
+    ble.startAdvertising();
+    deviceMode = ADVERTISING;
+    advertisingTicker.attach(&toggleLED, CONNECTED_BLINK_INTERVAL_SECS);
+    idleTicker.attach(&onIdleTimeout, IDLE_TIMEOUT_SECS);
+    red = 1; green = 1; blue = 0;
 }
 
 void wakeUp() {
@@ -110,7 +110,6 @@ void wakeUp() {
         return;
     }
     LOG("Woken up and starting BLE advertising.\n");
-    idleTicker.attach(&onIdleTimeout, IDLE_TIMEOUT_SECS);
     startAdvertising();
 }
 
@@ -142,7 +141,7 @@ uint8_t toUint8(short num) {
     return value >> 8;
 }
 
-void readUpdateAccel(NotifyReadService1 &monitorService) {
+void readUpdateAccel(DovetailService &monitorService) {
     unsigned long sensor_timestamp;
     short gyro[3], accel[3], sensors;
     long quat[4];
@@ -155,10 +154,9 @@ void readUpdateAccel(NotifyReadService1 &monitorService) {
 //            monitorService.addValue(toUint8(accel[2]));
         }
     }
-
 }
 
-void readUpdateECG(NotifyReadService1 &monitorService) {
+void readUpdateECG(DovetailService &monitorService) {
     uint8_t value = 0;
     if ((lo1 == 0) && (lo2 == 0)) {
         value = ecg.read_u16() * 255 / 1023; // Convert 10-bit ADC values to 8-bit
@@ -176,7 +174,7 @@ int main(void) {
     initBluetooth(ble);
     LOG("BTLE Initialized.\n");
 
-    NotifyReadService1 monitorService(ble);
+    DovetailService monitorService(ble);
     DeviceInformationService deviceInfo(ble, MFR_NAME, MODEL_NUM, SERIAL_NUM, HW_REV, FW_REV, SW_REV);
     DFUService dfu(ble);
 
