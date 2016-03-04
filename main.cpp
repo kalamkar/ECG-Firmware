@@ -5,7 +5,6 @@
 
 #define LOG(...)    { pc.printf(__VA_ARGS__); }
 
-// #include "tiny_ble.h"
 #include "port_config.h"
 
 #include "Bluetooth.h"
@@ -22,9 +21,9 @@
 #define FW_REV      "fw-rev1"
 #define SW_REV      "soft-rev1"
 
-#define BATTERY_READ_INTERVAL_SECS      30
 #define CONNECTED_BLINK_INTERVAL_SECS   2
 #define IDLE_TIMEOUT_SECS               60
+#define SENSOR_TICKER_MICROS            1000.0f  // Trigger Sensor every 1 milliseconds
 
 enum DeviceMode {
     SLEEPING,
@@ -122,7 +121,7 @@ void connectionCallback(const Gap::ConnectionCallbackParams_t *params) {
 // void connectionCallback(Gap::Handle_t handle, Gap::addr_type_t peerAddrType, const Gap::address_t peerAddr, const Gap::ConnectionParams_t *params) {
     stopAdvertising();
     deviceMode = SHORT_SESSION;
-    sensorTicker.attach(&triggerEcg, 0.01); // Trigger Sensor every 10 milliseconds
+    sensorTicker.attach_us(&triggerEcg, SENSOR_TICKER_MICROS);
     ecgPower = 1;
     red = 1; green = 0; blue = 0;
     LOG("Connected to device.\n");
