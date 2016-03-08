@@ -5,25 +5,11 @@
 
 #define LOG(...)    { pc.printf(__VA_ARGS__); }
 
-#include "port_config.h"
+#include "config.h"
 
 #include "Bluetooth.h"
-#include "DFUService.h"
-#include "DeviceInformationService.h"
-#include "NotifyService.h"
-
-#include "seeed_mpu6050.h"
-
-#define MFR_NAME    "Dovetail Monitor"
-#define MODEL_NUM   "Model1"
-#define SERIAL_NUM  "SN1"
-#define HW_REV      "hw-rev1"
-#define FW_REV      "fw-rev1"
-#define SW_REV      "soft-rev1"
-
-#define CONNECTED_BLINK_INTERVAL_SECS   2
-#define IDLE_TIMEOUT_SECS               60
-#define SENSOR_TICKER_MICROS            1000.0f  // Trigger Sensor every 1 milliseconds
+#include "ECG.h"
+#include "MotionProcessor.h"
 
 enum DeviceMode {
     SLEEPING,
@@ -34,12 +20,6 @@ enum DeviceMode {
 
 static DeviceMode deviceMode = SLEEPING;
 
-const static char     DEVICE_NAME[]     = "DovetailV2";
-static const uint16_t SERVICES[]        = { SHORT_UUID_SERVICE,
-                                            GattService::UUID_DEVICE_INFORMATION_SERVICE,
-                                            DFUServiceShortUUID,
-                                            GattService::UUID_BATTERY_SERVICE};
-
 DigitalOut      blue(LED_BLUE);
 DigitalOut      green(LED_GREEN);
 DigitalOut      red(LED_RED);
@@ -47,16 +27,13 @@ DigitalOut      red(LED_RED);
 InterruptIn     motionProbe(MPU6050_INT);
 Serial          pc(UART_TX, UART_RX);
 
-DigitalIn       lo1(LO_MINUS);
-DigitalIn       lo2(LO_PLUS);
-AnalogIn        ecg(ECG_SIGNAL);
-DigitalOut      ecgPower(SDN_BAR);
-
 Ticker          sensorTicker;
 Ticker          advertisingTicker;
 Ticker          idleTicker;
 
-BLEDevice       ble;
+BluetoothSmart  bluetooth;
+ECG             ecg;
+MotionProcessor mpu;
 
 volatile bool   readEcg = false;
 volatile bool   readAccel = false;
@@ -74,15 +51,15 @@ void toggleLED(void) {
 }
 
 void stopAdvertising() {
-    ble.stopAdvertising();
+    bluetooth.stop();
     advertisingTicker.detach();
     idleTicker.detach();
 }
 
 void goToSleep() {
     LOG("Device going to sleep mode.\n");
-    if (ble.getGapState().connected) {
-        ble.disconnect(Gap::LOCAL_HOST_TERMINATED_CONNECTION);
+    if (bluetooth.isConnected()) {
+        bluetooth.disconnect();
     } else if (deviceMode == ADVERTISING) {
         stopAdvertising();
     }
@@ -97,7 +74,7 @@ void onIdleTimeout() {
 }
 
 void startAdvertising() {
-    ble.startAdvertising();
+    bluetooth.start();
     deviceMode = ADVERTISING;
     advertisingTicker.attach(&toggleLED, CONNECTED_BLINK_INTERVAL_SECS);
     idleTicker.attach(&onIdleTimeout, IDLE_TIMEOUT_SECS);
@@ -108,7 +85,7 @@ void wakeUp() {
     if (deviceMode != SLEEPING) {
         return;
     }
-    LOG("Woken up and starting BLE advertising.\n");
+    LOG("Device woken up.\n");
     startAdvertising();
 }
 
@@ -122,7 +99,7 @@ void connectionCallback(const Gap::ConnectionCallbackParams_t *params) {
     stopAdvertising();
     deviceMode = SHORT_SESSION;
     sensorTicker.attach_us(&triggerEcg, SENSOR_TICKER_MICROS);
-    ecgPower = 1;
+    ecg.start();
     red = 1; green = 0; blue = 0;
     LOG("Connected to device.\n");
 }
@@ -130,37 +107,9 @@ void connectionCallback(const Gap::ConnectionCallbackParams_t *params) {
 void disconnectionCallback(const Gap::DisconnectionCallbackParams_t *params) {
 // void disconnectionCallback(Gap::Handle_t handle, Gap::DisconnectionReason_t reason) {
     sensorTicker.detach();
-    ecgPower = 0;
+    ecg.stop();
     startAdvertising();
     LOG("Disconnected from device.\n");
-}
-
-uint8_t toUint8(short num) {
-    uint16_t value = num >= 0x8000 ? 0xFF00 : num < (0-0x8000) ? 0 : num + 0x8000;
-    return value >> 8;
-}
-
-void readUpdateAccel(DovetailService &monitorService) {
-    unsigned long sensor_timestamp;
-    short gyro[3], accel[3], sensors;
-    long quat[4];
-    unsigned char more = 1;
-
-    while (more) {
-        dmp_read_fifo(gyro, accel, quat, &sensor_timestamp, &sensors, &more);
-        if ((sensors & INV_XYZ_ACCEL) && (ble.getGapState().connected)) {
-//            LOG("ACC: %d, %d, %d\n", accel[0], accel[1], accel[2]);
-//            monitorService.addValue(toUint8(accel[2]));
-        }
-    }
-}
-
-void readUpdateECG(DovetailService &monitorService) {
-    uint8_t value = 0;
-    if ((lo1 == 0) && (lo2 == 0)) {
-        value = ecg.read_u16() * 255 / 1023; // Convert 10-bit ADC values to 8-bit
-    }
-    monitorService.addValue(value);
 }
 
 int main(void) {
@@ -168,35 +117,30 @@ int main(void) {
 
     pc.baud(115200);
     LOG("\n--- DovetailV2 Monitor ---\n");
-
-    LOG("Initializing BTLE...\n");
-    initBluetooth(ble);
-    LOG("BTLE Initialized.\n");
-
-    DovetailService monitorService(ble);
-    DeviceInformationService deviceInfo(ble, MFR_NAME, MODEL_NUM, SERIAL_NUM, HW_REV, FW_REV, SW_REV);
-    DFUService dfu(ble);
-
-    setupAdvertising(ble, (uint8_t *) SERVICES, DEVICE_NAME);
     
-    initMotionProcessor();
     motionProbe.fall(&triggerAccel);
 
-    red = 1; green = 0; blue = 1;  // Show green light for a second to show boot success.
-    wait(1);
-    red = 1; green = 1; blue = 1;
+    if (mpu.hasInitialized() && bluetooth.hasInitialized()) {
+        LOG("MPU6050 and bluetooth initialized.\n");
+        red = 1; green = 0; blue = 1;  // Show green light for a second to show boot success.
+        wait(1);
+        red = 1; green = 1; blue = 1;
+    } else {
+        LOG("Failed to initialize mpu6050 or bluetooth.\n");
+    }
+    
 
     // infinite loop
     while (true) {
-        if (readEcg && ble.getGapState().connected) {
+        if (readEcg && bluetooth.isConnected()) {
             readEcg = false;
-            readUpdateECG(monitorService);
+            bluetooth.service().addValue(ecg.read());
         }
 
         if (readAccel) {
             readAccel = false;
-            readUpdateAccel(monitorService);
+            mpu.processData();
         }
-        ble.waitForEvent(); // low power wait for event
+        bluetooth.sleep();
     }
 }
