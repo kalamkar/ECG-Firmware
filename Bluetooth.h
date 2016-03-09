@@ -16,6 +16,7 @@ const static uint16_t services[]        = { SHORT_UUID_SERVICE,
                                             GattService::UUID_BATTERY_SERVICE};
 
 
+extern void onInit();
 extern void onConnect();
 extern void onDisconnect();
 extern void onAdvertisingStarted();
@@ -30,20 +31,25 @@ public:
         deviceInfo(NULL),
         dfu(NULL) {
     }
+    
+    ~BluetoothSmart() {
+        cleanUp();
+    }
 
     void start() {
-//        ble.init(this, &BluetoothSmart::onInit);
-        if (!ble.hasInitialized()) {
-            ble.init(this, &BluetoothSmart::onInit);
-        } else {
-            ble.startAdvertising();
-            onAdvertisingStarted();
-        }
+        ble.init(this, &BluetoothSmart::onInit);
     }
 
     void stop() {
-//        shutdown();
-        ble.stopAdvertising();
+        if (isConnected()) {
+            ble.disconnect(Gap::LOCAL_HOST_TERMINATED_CONNECTION);
+        } else if (isAdvertising()) {
+            ble.stopAdvertising();
+        }
+        // Commented out shutdown as it doesn't restore services properly.
+        // ble.shutdown();
+        // LOG("Shutdown bluetooth.\n");
+        cleanUp();
     }
 
     bool hasInitialized() {
@@ -54,10 +60,10 @@ public:
         return ble.getGapState().connected;
     }
     
-    void disconnect() {
-        ble.disconnect(Gap::LOCAL_HOST_TERMINATED_CONNECTION);
+    bool isAdvertising() {
+        return ble.getGapState().advertising;
     }
-    
+
     void sleep() {
         ble.waitForEvent();
     }
@@ -73,7 +79,7 @@ private:
             return;
         }
         LOG("Bluetooth initialized.\n");
-        
+
         ble.gap().onConnection(this, &BluetoothSmart::onConnection);
         ble.gap().onDisconnection(this, &BluetoothSmart::onDisconnection);
                 
@@ -88,17 +94,13 @@ private:
                                         (uint8_t *) deviceName, strlen(deviceName));
         ble.setAdvertisingType(GapAdvertisingParams::ADV_CONNECTABLE_UNDIRECTED);
         ble.setAdvertisingInterval(ADVERTISING_INTERVAL_MILLIS);
-        
-        if (monitorService == NULL) {
-            monitorService = new DovetailService(ble);
-        }
-        if (deviceInfo == NULL) {
-            deviceInfo = new DeviceInformationService(ble, MFR_NAME, MODEL_NUM, SERIAL_NUM, HW_REV, FW_REV, SW_REV);
-        }
-        if (dfu == NULL) {
-            dfu = new DFUService(ble);
-        }
-        
+
+        onInit();
+
+        monitorService = new DovetailService(ble);
+        deviceInfo = new DeviceInformationService(ble, MFR_NAME, MODEL_NUM, SERIAL_NUM, HW_REV, FW_REV, SW_REV);
+        dfu = new DFUService(ble);
+
         ble.startAdvertising();
         onAdvertisingStarted();
     }
@@ -121,7 +123,7 @@ private:
         onDisconnect();
     }
     
-    void shutdown() {
+    void cleanUp() {
         if (monitorService != NULL) {
             delete monitorService;
             monitorService = NULL;
@@ -134,8 +136,6 @@ private:
             delete dfu;
             dfu = NULL;
         }
-        ble.shutdown();
-        LOG("Shutdown bluetooth.\n");
     }
     
 private:

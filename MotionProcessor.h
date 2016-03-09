@@ -1,6 +1,7 @@
 #ifndef __MOTION_PROCESSOR_H__
 #define __MOTION_PROCESSOR_H__
 
+#include "mbed_i2c.h"
 #include "inv_mpu.h"
 #include "inv_mpu_dmp_motion_driver.h"
 

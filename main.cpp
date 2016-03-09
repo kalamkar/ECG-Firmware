@@ -1,7 +1,7 @@
 // Copyright 2015 Dovetail Care Inc. All rights reserved.
 
 #include "mbed.h"
-#include "mbed_i2c.h"
+#include "nRF5xGap.h"
 
 #define LOG(...)    { pc.printf(__VA_ARGS__); }
 
@@ -52,14 +52,14 @@ void toggleLED(void) {
 
 void goToSleep() {
     LOG("Device going to sleep mode.\n");
-    if (bluetooth.isConnected()) {
-        bluetooth.disconnect();
-    } else if (deviceMode == ADVERTISING) {
-        onAdvertisingStopped();
-    }
     deviceMode = SLEEPING;
     red = 1; green = 1; blue = 1;
     bluetooth.stop();
+    sensorTicker.detach();
+    advertisingTicker.detach();
+    idleTicker.detach();
+    ecg.stop();
+    sd_power_system_off();
 }
 
 void onIdleTimeout() {
@@ -95,6 +95,10 @@ void onTap(unsigned char direction, unsigned char count) {
     wakeUp();
 }
 
+void onInit() {
+    
+}
+
 void onConnect() {
     deviceMode = SHORT_SESSION;
     sensorTicker.attach_us(&triggerEcg, SENSOR_TICKER_MICROS);
@@ -116,19 +120,21 @@ int main(void) {
     motionProbe.fall(&triggerAccel);
 
     if (mpu.hasInitialized()) {
-        LOG("MPU6050 initialized.\n");
-        red = 1; green = 0; blue = 1;  // Show green light for a second to show boot success.
-        wait(1);
-        red = 1; green = 1; blue = 1;
+        LOG("Motion processor initialized.\n");
     } else {
-        LOG("Failed to initialize mpu6050 or bluetooth.\n");
+        LOG("Failed to initialize motion processor.\n");
+        return -1;
     }
+    
+    wakeUp();
 
     // infinite loop
     while (true) {
-        if (readEcg && bluetooth.isConnected()) {
+        if (readEcg) {
             readEcg = false;
-            bluetooth.service().addValue(ecg.read());
+            if (bluetooth.isConnected()) {
+                bluetooth.service().addValue(ecg.read());
+            }
         }
 
         if (readAccel) {
