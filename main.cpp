@@ -50,21 +50,16 @@ void toggleLED(void) {
     blue = !blue;
 }
 
-void stopAdvertising() {
-    bluetooth.stop();
-    advertisingTicker.detach();
-    idleTicker.detach();
-}
-
 void goToSleep() {
     LOG("Device going to sleep mode.\n");
     if (bluetooth.isConnected()) {
         bluetooth.disconnect();
     } else if (deviceMode == ADVERTISING) {
-        stopAdvertising();
+        onAdvertisingStopped();
     }
     deviceMode = SLEEPING;
     red = 1; green = 1; blue = 1;
+    bluetooth.stop();
 }
 
 void onIdleTimeout() {
@@ -73,8 +68,14 @@ void onIdleTimeout() {
     }
 }
 
-void startAdvertising() {
-    bluetooth.start();
+void onAdvertisingStopped() {
+    LOG("Stopped bluetooth advertising.\n");
+    advertisingTicker.detach();
+    idleTicker.detach();
+}
+
+void onAdvertisingStarted() {
+    LOG("Advertising started.\n");
     deviceMode = ADVERTISING;
     advertisingTicker.attach(&toggleLED, CONNECTED_BLINK_INTERVAL_SECS);
     idleTicker.attach(&onIdleTimeout, IDLE_TIMEOUT_SECS);
@@ -86,7 +87,7 @@ void wakeUp() {
         return;
     }
     LOG("Device woken up.\n");
-    startAdvertising();
+    bluetooth.start();
 }
 
 void onTap(unsigned char direction, unsigned char count) {
@@ -94,22 +95,16 @@ void onTap(unsigned char direction, unsigned char count) {
     wakeUp();
 }
 
-void connectionCallback(const Gap::ConnectionCallbackParams_t *params) {
-// void connectionCallback(Gap::Handle_t handle, Gap::addr_type_t peerAddrType, const Gap::address_t peerAddr, const Gap::ConnectionParams_t *params) {
-    stopAdvertising();
+void onConnect() {
     deviceMode = SHORT_SESSION;
     sensorTicker.attach_us(&triggerEcg, SENSOR_TICKER_MICROS);
     ecg.start();
     red = 1; green = 0; blue = 0;
-    LOG("Connected to device.\n");
 }
 
-void disconnectionCallback(const Gap::DisconnectionCallbackParams_t *params) {
-// void disconnectionCallback(Gap::Handle_t handle, Gap::DisconnectionReason_t reason) {
+void onDisconnect() {
     sensorTicker.detach();
     ecg.stop();
-    startAdvertising();
-    LOG("Disconnected from device.\n");
 }
 
 int main(void) {
@@ -120,15 +115,14 @@ int main(void) {
     
     motionProbe.fall(&triggerAccel);
 
-    if (mpu.hasInitialized() && bluetooth.hasInitialized()) {
-        LOG("MPU6050 and bluetooth initialized.\n");
+    if (mpu.hasInitialized()) {
+        LOG("MPU6050 initialized.\n");
         red = 1; green = 0; blue = 1;  // Show green light for a second to show boot success.
         wait(1);
         red = 1; green = 1; blue = 1;
     } else {
         LOG("Failed to initialize mpu6050 or bluetooth.\n");
     }
-    
 
     // infinite loop
     while (true) {
@@ -141,6 +135,7 @@ int main(void) {
             readAccel = false;
             mpu.processData();
         }
+        
         bluetooth.sleep();
     }
 }

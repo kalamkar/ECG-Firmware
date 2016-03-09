@@ -16,32 +16,36 @@ const static uint16_t services[]        = { SHORT_UUID_SERVICE,
                                             GattService::UUID_BATTERY_SERVICE};
 
 
-extern void connectionCallback(const Gap::ConnectionCallbackParams_t *);
-extern void disconnectionCallback(const Gap::DisconnectionCallbackParams_t *);
+extern void onConnect();
+extern void onDisconnect();
+extern void onAdvertisingStarted();
+extern void onAdvertisingStopped();
 
 extern Serial pc;
 
 class BluetoothSmart {
 public:
-    BluetoothSmart() {
-        init();
-    }
-        
-    ~BluetoothSmart() {
-        clear();
+    BluetoothSmart() :
+        monitorService(NULL),
+        deviceInfo(NULL),
+        dfu(NULL) {
     }
 
     void start() {
-        ble.startAdvertising();
-        LOG("Advertising started.\n");
+//        ble.init(this, &BluetoothSmart::onInit);
+        if (!ble.hasInitialized()) {
+            ble.init(this, &BluetoothSmart::onInit);
+        } else {
+            ble.startAdvertising();
+            onAdvertisingStarted();
+        }
     }
-    
+
     void stop() {
-        // ble.shutdown();
+//        shutdown();
         ble.stopAdvertising();
-        LOG("Stopped bluetooth advertising.\n");
     }
-    
+
     bool hasInitialized() {
         return ble.hasInitialized();
     }
@@ -62,13 +66,19 @@ public:
         return (*monitorService);
     }
 private:
-
-    void init() {
-        ble.init();
-        ble.onDisconnection(disconnectionCallback);
-        ble.onConnection(connectionCallback);
         
+    void onInit(BLE::InitializationCompleteCallbackContext *context) {
+        if (context->error != BLE_ERROR_NONE) {
+            LOG("Bluetooth initialization failed with error %d.\n", context->error);
+            return;
+        }
+        LOG("Bluetooth initialized.\n");
+        
+        ble.gap().onConnection(this, &BluetoothSmart::onConnection);
+        ble.gap().onDisconnection(this, &BluetoothSmart::onDisconnection);
+                
         // Advertising setup
+        ble.clearAdvertisingPayload();
         ble.accumulateAdvertisingPayload(GapAdvertisingData::BREDR_NOT_SUPPORTED
                                         | GapAdvertisingData::LE_GENERAL_DISCOVERABLE);
         ble.accumulateAdvertisingPayload(GapAdvertisingData::COMPLETE_LIST_16BIT_SERVICE_IDS,
@@ -79,12 +89,39 @@ private:
         ble.setAdvertisingType(GapAdvertisingParams::ADV_CONNECTABLE_UNDIRECTED);
         ble.setAdvertisingInterval(ADVERTISING_INTERVAL_MILLIS);
         
-        monitorService = new DovetailService(ble);
-        deviceInfo = new DeviceInformationService(ble, MFR_NAME, MODEL_NUM, SERIAL_NUM, HW_REV, FW_REV, SW_REV);
-        dfu = new DFUService(ble);
+        if (monitorService == NULL) {
+            monitorService = new DovetailService(ble);
+        }
+        if (deviceInfo == NULL) {
+            deviceInfo = new DeviceInformationService(ble, MFR_NAME, MODEL_NUM, SERIAL_NUM, HW_REV, FW_REV, SW_REV);
+        }
+        if (dfu == NULL) {
+            dfu = new DFUService(ble);
+        }
+        
+        ble.startAdvertising();
+        onAdvertisingStarted();
     }
     
-    void clear() {
+    void onConnection(const Gap::ConnectionCallbackParams_t *params) {
+        LOG("Connected to device.\n");
+        
+        ble.stopAdvertising();
+        onAdvertisingStopped();
+        
+        onConnect();
+    }
+    
+    void onDisconnection(const Gap::DisconnectionCallbackParams_t *params) {
+        LOG("Disconnected from device.\n");
+        
+        ble.startAdvertising();
+        onAdvertisingStarted();
+
+        onDisconnect();
+    }
+    
+    void shutdown() {
         if (monitorService != NULL) {
             delete monitorService;
             monitorService = NULL;
@@ -97,6 +134,8 @@ private:
             delete dfu;
             dfu = NULL;
         }
+        ble.shutdown();
+        LOG("Shutdown bluetooth.\n");
     }
     
 private:

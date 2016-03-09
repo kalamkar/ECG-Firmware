@@ -77,7 +77,7 @@ private:
         LOG("Motion Processor initialized.\n");
     }
     
-    uint8_t toUint8(short num) {
+    static uint8_t toUint8(short num) {
         uint16_t value = num >= 0x8000 ? 0xFF00 : num < (0-0x8000) ? 0 : num + 0x8000;
         return value >> 8;
     }
