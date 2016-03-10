@@ -114,15 +114,34 @@ private:
     
     void onConnection(const Gap::ConnectionCallbackParams_t *params) {
         LOG("Connected to device.\n");
-        
+
         ble.stopAdvertising();
         onAdvertisingStopped();
+
+        Gap::ConnectionParams_t connectionParams;
+        connectionParams.minConnectionInterval = MIN_CONN_INTERVAL;
+        connectionParams.maxConnectionInterval = MAX_CONN_INTERVAL;
+        connectionParams.slaveLatency = SLAVE_LATENCY;
+        connectionParams.connectionSupervisionTimeout = CONN_SUP_TIMEOUT;
+        ble.updateConnectionParams(params->handle, &connectionParams);
         
+        if (sd_power_dcdc_mode_set(NRF_POWER_DCDC_ENABLE) == NRF_SUCCESS) {
+            LOG("DCDC mode set to ENABLE successfully.\n");
+        } else {
+            LOG("Failed to set DCDC mode to ENABLE.\n");
+        }
+
         onConnect();
     }
     
     void onDisconnection(const Gap::DisconnectionCallbackParams_t *params) {
         LOG("Disconnected from device.\n");
+        
+        if (sd_power_dcdc_mode_set(NRF_POWER_DCDC_DISABLE) == NRF_SUCCESS) {
+            LOG("DCDC mode set to DISABLE successfully.\n");
+        } else {
+            LOG("Failed to set DCDC mode to DISABLE.\n");
+        }
         
         ble.startAdvertising();
         onAdvertisingStarted();

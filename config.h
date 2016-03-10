@@ -42,5 +42,12 @@
 #define UART_RX     p18
 #define UART_TX     p20
 
+// Bluetooth connection power optimization params
+#define MIN_CONN_INTERVAL   MSEC_TO_UNITS(379, UNIT_1_25_MS)    // < Minimum connection interval (379 ms)
+#define MAX_CONN_INTERVAL   MSEC_TO_UNITS(399, UNIT_1_25_MS)    // < Maximum connection interval (399 ms).
+#define SLAVE_LATENCY       4                                   // < Slave latency.
+#define CONN_SUP_TIMEOUT    MSEC_TO_UNITS(6000, UNIT_10_MS)     // < Connection supervisory timeout (6 seconds).
+ 
+
 
 #endif // __DOVETAIL_CONFIG_H__

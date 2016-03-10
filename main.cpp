@@ -111,12 +111,11 @@ void onDisconnect() {
 }
 
 int main(void) {
-    set_time(1256729737);
-    red = 0; green = 1; blue = 1;    
-
+    red = 0; green = 1; blue = 1;
+    
     pc.baud(115200);
     LOG("\n--- DovetailV2 Monitor ---\n");
-    
+
     motionProbe.fall(&triggerAccel);
 
     if (mpu.hasInitialized()) {
