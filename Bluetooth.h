@@ -15,8 +15,7 @@ const static uint16_t services[]        = { SHORT_UUID_SERVICE,
                                             DFUServiceShortUUID,
                                             GattService::UUID_BATTERY_SERVICE};
 
-
-extern void onInit();
+extern void onBluetoothInit();
 extern void onConnect();
 extern void onDisconnect();
 extern void onAdvertisingStarted();
@@ -95,7 +94,7 @@ private:
         ble.setAdvertisingType(GapAdvertisingParams::ADV_CONNECTABLE_UNDIRECTED);
         ble.setAdvertisingInterval(ADVERTISING_INTERVAL_MILLIS);
 
-        onInit();
+        onBluetoothInit();
 
         monitorService = new DovetailService(ble);
         deviceInfo = new DeviceInformationService(ble, MFR_NAME, MODEL_NUM, SERIAL_NUM, HW_REV, FW_REV, SW_REV);

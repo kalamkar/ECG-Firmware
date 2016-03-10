@@ -59,7 +59,7 @@ void goToSleep() {
     advertisingTicker.detach();
     idleTicker.detach();
     ecg.stop();
-    sd_power_system_off();
+    sd_power_system_off();  // Should be the last statement. On wakeup resets the system.
 }
 
 void onIdleTimeout() {
@@ -95,7 +95,7 @@ void onTap(unsigned char direction, unsigned char count) {
     wakeUp();
 }
 
-void onInit() {
+void onBluetoothInit() {
     
 }
 
@@ -112,6 +112,7 @@ void onDisconnect() {
 }
 
 int main(void) {
+    set_time(1256729737);
     red = 0; green = 1; blue = 1;    
 
     pc.baud(115200);
@@ -133,7 +134,11 @@ int main(void) {
         if (readEcg) {
             readEcg = false;
             if (bluetooth.isConnected()) {
-                bluetooth.service().addValue(ecg.read());
+                uint8_t value = ecg.read();
+                bluetooth.service().addValue(value);
+                if (ecg.getIdleSeconds() > IDLE_TIMEOUT_SECS) {
+                    goToSleep();
+                }
             }
         }
 
