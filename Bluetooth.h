@@ -9,7 +9,6 @@
 #include "DeviceInformationService.h"
 #include "NotifyService.h"
 
-const static char     deviceName[]      = DEVICE_NAME;
 const static uint16_t services[]        = { SHORT_UUID_SERVICE,
                                             GattService::UUID_DEVICE_INFORMATION_SERVICE,
                                             DFUServiceShortUUID,
@@ -81,6 +80,12 @@ private:
             return;
         }
         LOG("Bluetooth initialized.\n");
+        
+        char  deviceName[] = DEVICE_NAME;
+        BLEProtocol::AddressType_t type;
+        BLEProtocol::AddressBytes_t address;
+        ble.getAddress(&type, address);
+        sprintf(deviceName + strlen(deviceName) - 3, "%03d", address[5]);
 
         ble.gap().onConnection(this, &BluetoothSmart::onConnection);
         ble.gap().onDisconnection(this, &BluetoothSmart::onDisconnection);

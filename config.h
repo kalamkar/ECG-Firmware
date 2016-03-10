@@ -9,7 +9,7 @@
 
 
 // Bluetooth config
-#define DEVICE_NAME "DovetailV2"
+#define DEVICE_NAME "Dovetail000"
 #define MFR_NAME    "Dovetail Monitor"
 #define MODEL_NUM   "Model1"
 #define SERIAL_NUM  "SN1"
