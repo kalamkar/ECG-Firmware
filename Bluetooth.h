@@ -50,6 +50,12 @@ public:
         // LOG("Shutdown bluetooth.\n");
         cleanUp();
     }
+    
+    void addValue(uint8_t value) {
+        if (isConnected() && monitorService != NULL) {
+            monitorService->addValue(value);
+        }
+    }
 
     bool hasInitialized() {
         return ble.hasInitialized();
@@ -66,10 +72,7 @@ public:
     void sleep() {
         ble.waitForEvent();
     }
-    
-    DovetailService& service() {
-        return (*monitorService);
-    }
+
 private:
         
     void onInit(BLE::InitializationCompleteCallbackContext *context) {

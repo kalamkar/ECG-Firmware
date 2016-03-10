@@ -63,7 +63,7 @@ void goToSleep() {
 }
 
 void onIdleTimeout() {
-    if (deviceMode == ADVERTISING) {
+    if (deviceMode == ADVERTISING || ecg.getIdleSeconds() > IDLE_TIMEOUT_SECS) {
         goToSleep();
     }
 }
@@ -71,14 +71,12 @@ void onIdleTimeout() {
 void onAdvertisingStopped() {
     LOG("Stopped bluetooth advertising.\n");
     advertisingTicker.detach();
-    idleTicker.detach();
 }
 
 void onAdvertisingStarted() {
     LOG("Advertising started.\n");
     deviceMode = ADVERTISING;
     advertisingTicker.attach(&toggleLED, CONNECTED_BLINK_INTERVAL_SECS);
-    idleTicker.attach(&onIdleTimeout, IDLE_TIMEOUT_SECS);
     red = 1; green = 1; blue = 0;
 }
 
@@ -88,6 +86,7 @@ void wakeUp() {
     }
     LOG("Device woken up.\n");
     bluetooth.start();
+    idleTicker.attach(&onIdleTimeout, IDLE_TIMEOUT_SECS);
 }
 
 void onTap(unsigned char direction, unsigned char count) {
@@ -133,13 +132,7 @@ int main(void) {
     while (true) {
         if (readEcg) {
             readEcg = false;
-            if (bluetooth.isConnected()) {
-                uint8_t value = ecg.read();
-                bluetooth.service().addValue(value);
-                if (ecg.getIdleSeconds() > IDLE_TIMEOUT_SECS) {
-                    goToSleep();
-                }
-            }
+            bluetooth.addValue(ecg.read());
         }
 
         if (readAccel) {
