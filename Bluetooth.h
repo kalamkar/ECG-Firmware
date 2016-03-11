@@ -108,22 +108,20 @@ private:
         deviceInfo = new DeviceInformationService(ble, MFR_NAME, MODEL_NUM, SERIAL_NUM, HW_REV, FW_REV, SW_REV);
         dfu = new DFUService(ble);
 
-        ble.startAdvertising();
-        onAdvertisingStarted();
+        startAdvertising();
     }
     
     void onConnection(const Gap::ConnectionCallbackParams_t *params) {
         LOG("Connected to device.\n");
 
-        ble.stopAdvertising();
-        onAdvertisingStopped();
+        stopAdvertising();
 
-        Gap::ConnectionParams_t connectionParams;
-        connectionParams.minConnectionInterval = MIN_CONN_INTERVAL;
-        connectionParams.maxConnectionInterval = MAX_CONN_INTERVAL;
-        connectionParams.slaveLatency = SLAVE_LATENCY;
-        connectionParams.connectionSupervisionTimeout = CONN_SUP_TIMEOUT;
-        ble.updateConnectionParams(params->handle, &connectionParams);
+//        Gap::ConnectionParams_t connectionParams;
+//        connectionParams.minConnectionInterval = MIN_CONN_INTERVAL;
+//        connectionParams.maxConnectionInterval = MAX_CONN_INTERVAL;
+//        connectionParams.slaveLatency = SLAVE_LATENCY;
+//        connectionParams.connectionSupervisionTimeout = CONN_SUP_TIMEOUT;
+//        ble.updateConnectionParams(params->handle, &connectionParams);
         
         if (sd_power_dcdc_mode_set(NRF_POWER_DCDC_ENABLE) == NRF_SUCCESS) {
             LOG("DCDC mode set to ENABLE successfully.\n");
@@ -143,10 +141,19 @@ private:
             LOG("Failed to set DCDC mode to DISABLE.\n");
         }
         
-        ble.startAdvertising();
-        onAdvertisingStarted();
+        startAdvertising();
 
         onDisconnect();
+    }
+    
+    void startAdvertising() {
+        ble.startAdvertising();
+        onAdvertisingStarted();
+    }
+    
+    void stopAdvertising() {
+        ble.stopAdvertising();
+        onAdvertisingStopped();
     }
     
     void cleanUp() {
