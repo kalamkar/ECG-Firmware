@@ -4,7 +4,7 @@
 
 // LED and other timer intervals
 #define CONNECTED_BLINK_INTERVAL_SECS   2
-#define IDLE_TIMEOUT_SECS               60
+#define IDLE_TIMEOUT_SECS               30
 #define SENSOR_TICKER_MICROS            1000.0f  // Trigger Sensor every 1 milliseconds
 
 
@@ -21,7 +21,7 @@
 
 
 // Accelerometer / Motion processor config
-#define DEFAULT_MPU_HZ  (100)
+#define DEFAULT_MPU_HZ  (5)
 #define TAP_COUNT 2
 #define TAP_THRESHOLD 100
 

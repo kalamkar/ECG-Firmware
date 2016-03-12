@@ -56,6 +56,7 @@ private:
         /* Push accel data into the FIFO. */
         mpu_configure_fifo(INV_XYZ_ACCEL);
         mpu_set_sample_rate(DEFAULT_MPU_HZ);
+        // mpu_lp_accel_mode(DEFAULT_MPU_HZ);
 
         /* Read back configuration in case it was set improperly. */
         unsigned char accel_fsr;

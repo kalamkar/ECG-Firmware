@@ -60,6 +60,7 @@ void goToSleep() {
     idleTicker.detach();
     ecg.stop();
     sd_power_system_off();  // Should be the last statement. On wakeup resets the system.
+    red = 0; green = 1; blue = 1; // Light up red if it cannot go to system off mode.
 }
 
 void onIdleTimeout() {
