@@ -64,11 +64,7 @@ private:
 
         dmp_load_motion_driver_firmware();
         dmp_register_tap_cb(&onTap);
-
-        uint16_t dmp_features = DMP_FEATURE_TAP | DMP_FEATURE_SEND_RAW_ACCEL;
-//    uint16_t dmp_features = DMP_FEATURE_PEDOMETER | DMP_FEATURE_TAP | DMP_FEATURE_ANDROID_ORIENT
-//            | DMP_FEATURE_SEND_RAW_ACCEL | DMP_FEATURE_SEND_CAL_GYRO | DMP_FEATURE_GYRO_CAL;
-        dmp_enable_feature(dmp_features);
+        dmp_enable_feature(DMP_FEATURE_TAP | DMP_FEATURE_SEND_RAW_ACCEL);
         dmp_set_fifo_rate(DEFAULT_MPU_HZ);
         mpu_set_dmp_state(1);
 
