@@ -35,9 +35,9 @@
 #define LED_RED     p16
 #define LED_BLUE    p15
 
-#define MPU6050_SDA p9
-#define MPU6050_SCL p8
-#define MPU6050_INT p11
+#define ACCEL_SDA   p11
+#define ACCEL_SCL   p9
+#define ACCEL_INT   p8
 
 #define UART_RX     p18
 #define UART_TX     p20

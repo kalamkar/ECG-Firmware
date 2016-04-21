@@ -24,7 +24,6 @@ DigitalOut      blue(LED_BLUE);
 DigitalOut      green(LED_GREEN);
 DigitalOut      red(LED_RED);
 
-InterruptIn     motionProbe(MPU6050_INT);
 Serial          pc(UART_TX, UART_RX);
 
 Ticker          sensorTicker;
@@ -59,6 +58,7 @@ void goToSleep() {
     advertisingTicker.detach();
     idleTicker.detach();
     ecg.stop();
+    mpu.enableDoubleTap();
     sd_power_system_off();  // Should be the last statement. On wakeup resets the system.
     red = 0; green = 1; blue = 1; // Light up red if it cannot go to system off mode.
 }
@@ -90,8 +90,8 @@ void wakeUp() {
     idleTicker.attach(&onIdleTimeout, IDLE_TIMEOUT_SECS);
 }
 
-void onTap(unsigned char direction, unsigned char count) {
-    LOG("Tap motion detected dir %d and strength %d\n", direction, count);
+void onTap() {
+    LOG("Tap gesture detected\n");
     wakeUp();
 }
 
@@ -115,9 +115,7 @@ int main(void) {
     red = 0; green = 1; blue = 1;
     
     pc.baud(115200);
-    LOG("\n--- DovetailV2 Monitor ---\n");
-
-    motionProbe.fall(&triggerAccel);
+    LOG("\n--- DovetailV3 ---\n");
 
     if (mpu.hasInitialized()) {
         LOG("Motion processor initialized.\n");
