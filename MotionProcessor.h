@@ -43,20 +43,14 @@ public:
 private:
 
     void init() {
-        LOG("Setting up accelerometer...\n");
         i2c.frequency(100);
-        LOG("Who Am I 0x%x == 0x%x\n", read_reg(LIS3DH_WHO_AM_I), I_AM_LIS3DH);
 
         write_reg(LIS3DH_CTRL_REG1, 0x4C);
         write_reg(LIS3DH_CTRL_REG2, 0xC4);
         write_reg(LIS3DH_CTRL_REG3, 0x80);
         write_reg(LIS3DH_CTRL_REG4, 0x0);
-
-        LOG("Control Reg 1 set to 0x%x\n", read_reg(LIS3DH_CTRL_REG1));
-        LOG("Control Reg 2 set to 0x%x\n", read_reg(LIS3DH_CTRL_REG2));
-        LOG("Control Reg 3 set to 0x%x\n", read_reg(LIS3DH_CTRL_REG3));
-        LOG("Control Reg 4 set to 0x%x\n", read_reg(LIS3DH_CTRL_REG4));
-        initialized = true;
+        
+        initialized = (read_reg(LIS3DH_WHO_AM_I) == I_AM_LIS3DH) && (read_reg(LIS3DH_CTRL_REG1) == 0x4C);
     }
     
     uint8_t read_reg(uint8_t addr) {
