@@ -9,7 +9,7 @@
 #include "DeviceInformationService.h"
 #include "NotifyService.h"
 
-const static uint16_t services[]        = { SHORT_UUID_SERVICE,
+const static uint16_t services[]        = { SERVICE_SHORT_UUID,
                                             GattService::UUID_DEVICE_INFORMATION_SERVICE,
                                             DFUServiceShortUUID,
                                             GattService::UUID_BATTERY_SERVICE};
@@ -104,7 +104,7 @@ private:
 
         onBluetoothInit();
 
-        monitorService = new DovetailService(ble);
+        monitorService = new NotifyService(ble, SERVICE_UUID, ECG_CHAR_UUID);
         deviceInfo = new DeviceInformationService(ble, MFR_NAME, MODEL_NUM, SERIAL_NUM, HW_REV, FW_REV, SW_REV);
         dfu = new DFUService(ble);
 
@@ -174,7 +174,7 @@ private:
 private:
     BLE                         ble;
     
-    DovetailService             *monitorService;
+    NotifyService               *monitorService;
     DeviceInformationService    *deviceInfo;
     DFUService                  *dfu;
     

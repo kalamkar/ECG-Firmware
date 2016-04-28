@@ -47,7 +47,24 @@
 #define MAX_CONN_INTERVAL   MSEC_TO_UNITS(399, UNIT_1_25_MS)    // < Maximum connection interval (399 ms).
 #define SLAVE_LATENCY       4                                   // < Slave latency.
 #define CONN_SUP_TIMEOUT    MSEC_TO_UNITS(6000, UNIT_10_MS)     // < Connection supervisory timeout (6 seconds).
- 
+
+
+static const uint8_t  BASE_UUID[] = {
+    0x40, 0x48, 0x46, 0xa0, 0x60, 0x8a, 0x11, 0xe5,
+    0xab, 0x45, 0x00, 0x02, 0xa5, 0xd5, 0xc5, 0x1b
+};
+static const uint16_t SERVICE_SHORT_UUID    = 0x46A0;
+static const uint16_t ECG_CHAR_SHORT_UUID   = 0x46A1;
+
+static const uint8_t  SERVICE_UUID[] = {
+    0x40, 0x48, (uint8_t)(SERVICE_SHORT_UUID >> 8), (uint8_t)(SERVICE_SHORT_UUID & 0xFF),
+    0x60, 0x8a, 0x11, 0xe5, 0xab, 0x45, 0x00, 0x02, 0xa5, 0xd5, 0xc5, 0x1b
+};
+static const uint8_t  ECG_CHAR_UUID[] = {
+    0x40, 0x48, (uint8_t)(ECG_CHAR_SHORT_UUID >> 8), (uint8_t)(ECG_CHAR_SHORT_UUID & 0xFF),
+    0x60, 0x8a, 0x11, 0xe5, 0xab, 0x45, 0x00, 0x02, 0xa5, 0xd5, 0xc5, 0x1b
+};
+
 
 
 #endif // __DOVETAIL_CONFIG_H__
