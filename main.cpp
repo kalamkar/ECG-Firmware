@@ -103,7 +103,7 @@ void onConnect() {
     deviceMode = SHORT_SESSION;
     sensorTicker.attach_us(&triggerEcg, SENSOR_TICKER_MICROS);
     ecg.start();
-    red = 1; green = 0; blue = 0;
+    red = 0; green = 0; blue = 0;
 }
 
 void onDisconnect() {

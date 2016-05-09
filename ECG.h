@@ -20,13 +20,14 @@ public:
     
     void stop() {
         ecgPower = 0;
+        lastValidEcg.reset();
         lastValidEcg.stop();
     }
 
     uint8_t read() {
         uint8_t value = 0;
         if ((lo1 == 0) && (lo2 == 0)) {
-            value = ecg.read_u16() * 255 / 1023; // Convert 10-bit ADC values to 8-bit
+            value = (uint8_t) ((ecg.read_u16() * 255) / 1023); // Convert 10 bit ADC values to 8
             lastValidEcg.reset();
         }
         return value;
