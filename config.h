@@ -5,6 +5,7 @@
 // LED and other timer intervals
 #define CONNECTED_BLINK_INTERVAL_SECS   2
 #define IDLE_TIMEOUT_SECS               30
+#define IDLE_CHECK_SECS                 1
 #define SENSOR_TICKER_MICROS            5000.0f  // Trigger Sensor every 5 milliseconds
 
 

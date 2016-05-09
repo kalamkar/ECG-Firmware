@@ -30,6 +30,8 @@ Ticker          sensorTicker;
 Ticker          advertisingTicker;
 Ticker          idleTicker;
 
+Timer           advertisingTimer;
+
 BluetoothSmart  bluetooth;
 ECG             ecg;
 MotionProcessor mpu;
@@ -63,8 +65,11 @@ void goToSleep() {
     red = 0; green = 1; blue = 1; // Light up red if it cannot go to system off mode.
 }
 
-void onIdleTimeout() {
-    if (deviceMode == ADVERTISING || ecg.getIdleSeconds() > IDLE_TIMEOUT_SECS) {
+void onIdleCheck() {
+    if (deviceMode == ADVERTISING && advertisingTimer.read() >= IDLE_TIMEOUT_SECS) {
+        goToSleep();
+    }
+    if (ecg.getIdleSeconds() >= IDLE_TIMEOUT_SECS) {
         goToSleep();
     }
 }
@@ -72,12 +77,14 @@ void onIdleTimeout() {
 void onAdvertisingStopped() {
     LOG("Stopped bluetooth advertising.\n");
     advertisingTicker.detach();
+    advertisingTimer.stop();
 }
 
 void onAdvertisingStarted() {
     LOG("Advertising started.\n");
     deviceMode = ADVERTISING;
     advertisingTicker.attach(&toggleLED, CONNECTED_BLINK_INTERVAL_SECS);
+    advertisingTimer.start();
     red = 1; green = 1; blue = 0;
 }
 
@@ -87,7 +94,7 @@ void wakeUp() {
     }
     LOG("Device woken up.\n");
     bluetooth.start();
-    idleTicker.attach(&onIdleTimeout, IDLE_TIMEOUT_SECS);
+    idleTicker.attach(&onIdleCheck, IDLE_CHECK_SECS);
 }
 
 void onTap() {
