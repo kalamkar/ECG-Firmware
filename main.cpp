@@ -130,10 +130,9 @@ int main(void) {
         LOG("Failed to initialize motion processor.\n");
         return -1;
     }
-    
+
     wakeUp();
 
-    // infinite loop
     while (true) {
         if (readEcg) {
             readEcg = false;
@@ -142,7 +141,7 @@ int main(void) {
 
         if (readAccel) {
             readAccel = false;
-            mpu.processData();
+            // bluetooth.addValue(mpu.readZ());
         }
         
         bluetooth.sleep();

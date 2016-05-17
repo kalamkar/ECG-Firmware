@@ -21,9 +21,6 @@ public:
         init();
     }
 
-    void processData() {
-    }
-    
     bool hasInitialized() {
         return initialized;
     }
@@ -31,6 +28,7 @@ public:
     void enableDoubleTap() {
         LOG("Enabling double tap...\n");
         wakeUp.fall(&onTap);
+        write_reg(LIS3DH_CTRL_REG3, 0x80);
         write_reg(LIS3DH_CLICK_CFG, 0x20); // Double Tap on Z axis
         write_reg(LIS3DH_CLICK_THS, 10);
         write_reg(LIS3DH_TIME_LIMIT, 10);
@@ -38,7 +36,18 @@ public:
         write_reg(LIS3DH_TIME_WINDOW, 255);
         LOG("CLICK CFG set to 0x%x\n", read_reg(LIS3DH_CLICK_CFG));
     }
-
+    
+    uint8_t readX() {
+        return read_reg(LIS3DH_OUT_X_H);
+    }
+    
+    uint8_t readY() {
+        return read_reg(LIS3DH_OUT_Y_H);
+    }
+    
+    uint8_t readZ() {
+        return read_reg(LIS3DH_OUT_Z_H);
+    }
 
 private:
 
